@@ -38,7 +38,7 @@
   <FormSettings>
     <Form xsi:type="ItemRead">
       <DesktopSettings>
-        <SourceLocation DefaultValue="https://afonsocanato.github.io/HostingTaskpane/taskpane/index.html"/>
+        <SourceLocation DefaultValue="https://afonsocanato.github.io/HostingTaskpane/taskpane/index.html?v=2"/>
         <RequestedHeight>450</RequestedHeight>
       </DesktopSettings>
     </Form>
@@ -101,8 +101,8 @@
       </bt:Images>
 
       <bt:Urls>
-        <bt:Url id="Commands.Url" DefaultValue="https://afonsocanato.github.io/HostingTaskpane/taskpane/commands.html"/>
-        <bt:Url id="Taskpane.Url" DefaultValue="https://afonsocanato.github.io/HostingTaskpane/taskpane/index.html"/>
+        <bt:Url id="Commands.Url" DefaultValue="https://afonsocanato.github.io/HostingTaskpane/taskpane/commands.html?v=2"/>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://afonsocanato.github.io/HostingTaskpane/taskpane/index.html?v=2"/>
       </bt:Urls>
 
       <bt:ShortStrings>
