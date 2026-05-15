@@ -327,30 +327,18 @@
   <div class="section active" id="sectionLogin">
     <div class="alert alert-error" id="loginError"></div>
 
-    <div class="field">
-      <label>Email</label>
-      <input type="email" id="inputEmail" placeholder="utilizador@empresa.pt" autocomplete="email" />
+    <div style="text-align:center; padding: 12px 0 24px;">
+      <div style="width:56px;height:56px;background:var(--primary);border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="white"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      <p style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px;">Hub Add-in</p>
+      <p style="font-size:13px;color:var(--text-muted);line-height:1.5;">
+        Inicie sessão com a sua conta Hub para anexar emails a oportunidades.
+      </p>
     </div>
 
-    <div class="field">
-      <label>Password</label>
-      <input type="password" id="inputPassword" placeholder="••••••••" autocomplete="current-password" />
-    </div>
-
-    <button class="btn btn-primary" id="btnLogin" onclick="handleEmailLogin()">
-      Entrar
-    </button>
-
-    <div class="or-divider">ou</div>
-
-    <button class="btn btn-ms" onclick="handleMicrosoftLogin()">
-      <svg width="18" height="18" viewBox="0 0 21 21">
-        <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
-        <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
-        <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
-        <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
-      </svg>
-      Entrar com Microsoft
+    <button class="btn btn-primary" id="btnLogin" onclick="handleLogin()">
+      Entrar no Hub
     </button>
   </div>
 
@@ -488,61 +476,39 @@
     }
 
     // ─────────────────────────────────────────────
-    //  Auth
+    //  Auth — abre o Hub num dialog do Office
     // ─────────────────────────────────────────────
-    async function handleEmailLogin() {
+    function handleLogin() {
       hideAlert('loginError');
-      const email = document.getElementById('inputEmail').value.trim();
-      const password = document.getElementById('inputPassword').value;
-
-      if (!email || !password) {
-        showAlert('loginError', 'Por favor preencha o email e a password.');
-        return;
-      }
-
-      setLoading('btnLogin', true, 'A entrar...');
-
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-      if (error) {
-        showAlert('loginError', 'Credenciais inválidas. Verifique o email e password.');
-        setLoading('btnLogin', false, 'Entrar');
-        return;
-      }
-
-      currentSession = data.session;
-      currentUser = data.user;
-      await initAttachView();
-    }
-
-    function handleMicrosoftLogin() {
-      hideAlert('loginError');
+      setLoading('btnLogin', true, 'A abrir o Hub...');
 
       const DIALOG_URL = 'https://afonsocanato.github.io/HostingTaskpane/taskpane/auth-dialog.html';
 
       Office.context.ui.displayDialogAsync(
         DIALOG_URL,
-        { height: 60, width: 40, promptBeforeOpen: false },
+        { height: 80, width: 50, promptBeforeOpen: false },
         (asyncResult) => {
           if (asyncResult.status === Office.AsyncResultStatus.Failed) {
-            showAlert('loginError', 'Não foi possível abrir a janela de login. Erro: ' + asyncResult.error.message);
+            showAlert('loginError', 'Não foi possível abrir o Hub. Erro: ' + asyncResult.error.message);
+            setLoading('btnLogin', false, 'Entrar no Hub');
             return;
           }
 
           const dialog = asyncResult.value;
 
-          // Recebe o token enviado pelo auth-dialog.html
+          // O Hub envia o token após login via Office.context.ui.messageParent()
           dialog.addEventHandler(Office.EventType.DialogMessageReceived, async (arg) => {
             dialog.close();
 
             let msg;
             try { msg = JSON.parse(arg.message); } catch(e) {
               showAlert('loginError', 'Erro ao processar resposta de autenticação.');
+              setLoading('btnLogin', false, 'Entrar no Hub');
               return;
             }
 
-            if (msg.type === 'AUTH_SUCCESS') {
-              // Reconstrói a sessão Supabase com os tokens recebidos do dialog
+            if (msg.type === 'AUTH_SUCCESS' && msg.access_token) {
+              // Reconstrói a sessão Supabase com os tokens recebidos do Hub
               const { data, error } = await supabase.auth.setSession({
                 access_token: msg.access_token,
                 refresh_token: msg.refresh_token,
@@ -550,6 +516,7 @@
 
               if (error || !data.session) {
                 showAlert('loginError', 'Sessão inválida. Tenta novamente.');
+                setLoading('btnLogin', false, 'Entrar no Hub');
                 return;
               }
 
@@ -559,13 +526,15 @@
 
             } else {
               showAlert('loginError', 'Login cancelado. Tenta novamente.');
+              setLoading('btnLogin', false, 'Entrar no Hub');
             }
           });
 
-          // Utilizador fechou o dialog manualmente (código 12006 = fechado pelo utilizador)
+          // Utilizador fechou o dialog manualmente (12006 = fechado pelo utilizador — não é erro)
           dialog.addEventHandler(Office.EventType.DialogEventReceived, (arg) => {
+            setLoading('btnLogin', false, 'Entrar no Hub');
             if (arg.error !== 12006) {
-              showAlert('loginError', 'A janela de login foi fechada inesperadamente.');
+              showAlert('loginError', 'A janela foi fechada inesperadamente. Tenta novamente.');
             }
           });
         }
@@ -579,9 +548,8 @@
       selectedDeal = null;
       emailData = null;
       document.getElementById('userBadge').style.display = 'none';
-      document.getElementById('inputEmail').value = '';
-      document.getElementById('inputPassword').value = '';
       showSection('sectionLogin');
+      setLoading('btnLogin', false, 'Entrar no Hub');
     }
 
     // ─────────────────────────────────────────────
