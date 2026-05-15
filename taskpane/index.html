@@ -306,7 +306,7 @@
         result => {
           if (result.status === Office.AsyncResultStatus.Failed) {
             showAlert('loginError', 'Erro ao abrir o Hub: ' + result.error.message);
-            setLoading('btnLogin', false, 'Entrar no Hub');
+            setLoading('btnLogin', false, 'Iniciar Sessão');
             return;
           }
 
@@ -317,7 +317,7 @@
             let msg;
             try { msg = JSON.parse(arg.message); } catch (e) {
               showAlert('loginError', 'Erro ao processar resposta. Tenta novamente.');
-              setLoading('btnLogin', false, 'Entrar no Hub');
+              setLoading('btnLogin', false, 'Iniciar Sessão');
               return;
             }
 
@@ -328,7 +328,7 @@
               });
               if (error || !data.session) {
                 showAlert('loginError', 'Sessão inválida. Tenta novamente.');
-                setLoading('btnLogin', false, 'Entrar no Hub');
+                setLoading('btnLogin', false, 'Iniciar Sessão');
                 return;
               }
               currentSession = data.session;
@@ -336,13 +336,13 @@
               await initAttachView();
             } else {
               showAlert('loginError', 'Login cancelado. Tenta novamente.');
-              setLoading('btnLogin', false, 'Entrar no Hub');
+              setLoading('btnLogin', false, 'Iniciar Sessão');
             }
           });
 
           // 12006 = utilizador fechou o dialog manualmente, não é erro
           dialog.addEventHandler(Office.EventType.DialogEventReceived, arg => {
-            setLoading('btnLogin', false, 'Entrar no Hub');
+            setLoading('btnLogin', false, 'Iniciar Sessão');
             if (arg.error !== 12006) {
               showAlert('loginError', 'Janela fechada inesperadamente. Tenta novamente.');
             }
@@ -355,7 +355,7 @@
       currentUser = currentSession = selectedDeal = emailData = null;
       document.getElementById('userBadge').style.display = 'none';
       showSection('sectionLogin');
-      setLoading('btnLogin', false, 'Entrar no Hub');
+      setLoading('btnLogin', false, 'Iniciar Sessão');
     }
 
     // ── After login ──────────────────────────────────────────────────────────
@@ -428,7 +428,7 @@
         let q = supabaseClient
           .from('deals')
           .select('id, title, stage, client:clients(id, name)')
-          .neq('stage', 'lost')
+          .neq('stage', 'closed_lost')
           .order('created_at', { ascending: false })
           .limit(30);
 
@@ -546,9 +546,9 @@
       return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
     const STAGE_LABELS = {
-      lead:'Lead', qualification:'Qualificação', proposal:'Proposta',
-      negotiation:'Negociação', won:'Ganho', lost:'Perdido',
-      prospect:'Prospeção', presales:'Pré-venda',
+      qualification: 'Qualificação', presale: 'Pré-venda', proposal: 'Proposta',
+      negotiation: 'Negociação', best_case: 'Best Case', committed: 'Committed',
+      closed_won: 'Ganho', closed_lost: 'Perdido',
     };
     function stageLabel(s) { return STAGE_LABELS[s] || s || '–'; }
   </script>
