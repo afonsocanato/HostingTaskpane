@@ -534,7 +534,7 @@
         if (insertError) throw new Error('Erro ao registar: ' + insertError.message);
 
         // 4. Inserir também na tabela deal_email_attachments (para o card de emails)
-        await supabaseClient
+        const { error: emailInsertError } = await supabaseClient
           .from('deal_email_attachments')
           .insert({
             deal_id:              dealId,
@@ -544,6 +544,8 @@
             attachment_id:        attachmentRecord.id,
             internet_message_id:  emailData.internet_message_id || null,
           });
+
+        if (emailInsertError) throw new Error('Erro ao registar email: ' + emailInsertError.message);
 
         showAlert('attachSuccess', `✓ Email anexado com sucesso a "${selectedDeal.title}"`);
         setLoading('btnAttach', false, 'Anexar Email');
