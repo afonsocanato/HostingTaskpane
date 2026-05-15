@@ -482,7 +482,8 @@
       hideAlert('loginError');
       setLoading('btnLogin', true, 'A abrir o Hub...');
 
-      const DIALOG_URL = 'https://afonsocanato.github.io/HostingTaskpane/taskpane/auth-dialog.html';
+      // Abre o Hub directamente no dialog — evita redirect intermédio que quebra o contexto Office.js
+      const DIALOG_URL = 'https://hub.itxmind.com/login?outlook_addin=1';
 
       Office.context.ui.displayDialogAsync(
         DIALOG_URL,
