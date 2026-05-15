@@ -518,7 +518,7 @@
         if (uploadError) throw new Error('Erro no upload: ' + uploadError.message);
 
         // 3. Inserir registo na tabela deal_attachments
-        const { error: insertError } = await supabaseClient
+        const { data: attachmentRecord, error: insertError } = await supabaseClient
           .from('deal_attachments')
           .insert({
             deal_id:     dealId,
@@ -527,9 +527,23 @@
             file_type:   'text/html',
             file_size:   htmlContent.length,
             uploaded_by: user?.id || null,
-          });
+          })
+          .select()
+          .single();
 
         if (insertError) throw new Error('Erro ao registar: ' + insertError.message);
+
+        // 4. Inserir também na tabela deal_email_attachments (para o card de emails)
+        await supabaseClient
+          .from('deal_email_attachments')
+          .insert({
+            deal_id:              dealId,
+            subject:              emailData.subject,
+            sender_email:         emailData.sender_email,
+            attached_by:          user?.id || null,
+            attachment_id:        attachmentRecord.id,
+            internet_message_id:  emailData.internet_message_id || null,
+          });
 
         showAlert('attachSuccess', `✓ Email anexado com sucesso a "${selectedDeal.title}"`);
         setLoading('btnAttach', false, 'Anexar Email');
