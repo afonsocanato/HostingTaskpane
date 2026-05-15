@@ -14,8 +14,8 @@
   <Description DefaultValue="Anexe emails do Outlook diretamente a oportunidades no ITXMind Hub"/>
 
   <!-- Ícones públicos do Office CDN (sempre acessíveis, não requerem setup) -->
-  <IconUrl DefaultValue="https://afonsocanato.github.io/HostingTaskpane/assets/icon-16.png"/>
-  <HighResolutionIconUrl DefaultValue="https://afonsocanato.github.io/HostingTaskpane/assets/icon-80.png"/>
+  <IconUrl DefaultValue="https://afonsocanato.github.io/HostingTaskpane/taskpane/assets/icon-16.png"/>
+  <HighResolutionIconUrl DefaultValue="https://afonsocanato.github.io/HostingTaskpane/taskpane/assets/icon-80.png"/>
   <SupportUrl DefaultValue="https://itxmind.pt"/>
 
   <AppDomains>
@@ -95,9 +95,9 @@
     <Resources>
       <bt:Images>
         <!-- Ícones públicos do Office CDN, sempre acessíveis -->
-        <bt:Image id="Icon.16x16" DefaultValue="https://afonsocanato.github.io/HostingTaskpane/assets/icon-16.png"/>
-        <bt:Image id="Icon.32x32" DefaultValue="https://afonsocanato.github.io/HostingTaskpane/assets/icon-32.png"/>
-        <bt:Image id="Icon.80x80" DefaultValue="https://afonsocanato.github.io/HostingTaskpane/assets/icon-80.png"/>
+        <bt:Image id="Icon.16x16" DefaultValue="https://afonsocanato.github.io/HostingTaskpane/taskpane/assets/icon-16.png"/>
+        <bt:Image id="Icon.32x32" DefaultValue="https://afonsocanato.github.io/HostingTaskpane/taskpane/assets/icon-32.png"/>
+        <bt:Image id="Icon.80x80" DefaultValue="https://afonsocanato.github.io/HostingTaskpane/taskpane/assets/icon-80.png"/>
       </bt:Images>
 
       <bt:Urls>
