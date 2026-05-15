@@ -8,7 +8,7 @@
   <!-- Office.js MUST be loaded before anything else -->
   <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js" type="text/javascript"></script>
 
-  <!-- Supabase JS (ESM via CDN) -->
+  <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
   <style>
@@ -29,286 +29,117 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 14px;
-      color: var(--text);
-      background: var(--bg);
-      padding: 16px;
-      min-height: 100vh;
+      font-size: 14px; color: var(--text); background: var(--bg);
+      padding: 16px; min-height: 100vh;
     }
 
-    /* ── Header ── */
     .header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding-bottom: 14px;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 18px;
+      display: flex; align-items: center; gap: 10px;
+      padding-bottom: 14px; border-bottom: 1px solid var(--border); margin-bottom: 18px;
     }
-
     .logo {
-      width: 32px;
-      height: 32px;
-      background: var(--primary);
-      border-radius: 7px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
+      width: 32px; height: 32px; background: var(--primary);
+      border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
-
     .logo svg { width: 18px; height: 18px; fill: white; }
-
-    .header-text h1 {
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--text);
-      line-height: 1.2;
-    }
-
-    .header-text p {
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-
+    .header-text h1 { font-size: 15px; font-weight: 700; line-height: 1.2; }
+    .header-text p  { font-size: 11px; color: var(--text-muted); }
     .user-badge {
-      margin-left: auto;
-      font-size: 11px;
-      color: var(--text-muted);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      cursor: pointer;
+      margin-left: auto; font-size: 11px; color: var(--text-muted);
+      display: flex; align-items: center; gap: 6px; cursor: pointer;
     }
+    .user-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
 
-    .user-badge .dot {
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: var(--success);
-    }
-
-    /* ── Sections ── */
     .section { display: none; }
     .section.active { display: block; }
 
-    /* ── Form elements ── */
     .field { margin-bottom: 14px; }
-
     label {
-      display: block;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      margin-bottom: 5px;
+      display: block; font-size: 12px; font-weight: 600; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: .04em; margin-bottom: 5px;
     }
-
-    input[type="email"],
-    input[type="password"],
     input[type="text"] {
-      width: 100%;
-      padding: 9px 12px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      font-size: 14px;
-      color: var(--text);
-      background: var(--bg);
-      outline: none;
-      transition: border-color .15s;
+      width: 100%; padding: 9px 12px; border: 1px solid var(--border);
+      border-radius: var(--radius); font-size: 14px; color: var(--text);
+      background: var(--bg); outline: none;
     }
-
     input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(26,86,219,.1); }
 
-    /* ── Button ── */
     .btn {
-      display: block;
-      width: 100%;
-      padding: 10px;
-      border: none;
-      border-radius: var(--radius);
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background .15s, opacity .15s;
+      display: block; width: 100%; padding: 10px; border: none;
+      border-radius: var(--radius); font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: background .15s, opacity .15s;
     }
-
     .btn-primary { background: var(--primary); color: white; }
     .btn-primary:hover { background: var(--primary-hover); }
     .btn-primary:disabled { opacity: .6; cursor: default; }
-    .btn-secondary { background: var(--bg-subtle); color: var(--text); border: 1px solid var(--border); }
-    .btn-secondary:hover { background: var(--border); }
 
-    .btn-ms {
-      background: #fff;
-      color: #444;
-      border: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      margin-top: 10px;
-    }
-
-    .btn-ms:hover { background: var(--bg-subtle); }
-
-    .or-divider {
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 12px;
-      margin: 12px 0;
-      position: relative;
-    }
-
-    .or-divider::before, .or-divider::after {
-      content: '';
-      position: absolute;
-      top: 50%;
-      width: 42%;
-      height: 1px;
-      background: var(--border);
-    }
-
-    .or-divider::before { left: 0; }
-    .or-divider::after { right: 0; }
-
-    /* ── Alert messages ── */
     .alert {
-      padding: 10px 12px;
-      border-radius: var(--radius);
-      font-size: 13px;
-      margin-bottom: 14px;
-      display: none;
+      padding: 10px 12px; border-radius: var(--radius);
+      font-size: 13px; margin-bottom: 14px; display: none;
     }
-
     .alert.show { display: block; }
-    .alert-error { background: #fef2f2; color: var(--danger); border: 1px solid #fecaca; }
+    .alert-error   { background: #fef2f2; color: var(--danger); border: 1px solid #fecaca; }
     .alert-success { background: #ecfdf5; color: var(--success); border: 1px solid #a7f3d0; }
-    .alert-info { background: #eff6ff; color: var(--primary); border: 1px solid #bfdbfe; }
 
-    /* ── Deal search ── */
     .search-wrapper { position: relative; }
-
     .search-results {
-      position: absolute;
-      top: calc(100% + 4px);
-      left: 0; right: 0;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: 0 4px 16px rgba(0,0,0,.1);
-      max-height: 220px;
-      overflow-y: auto;
-      z-index: 100;
-      display: none;
+      position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius); box-shadow: 0 4px 16px rgba(0,0,0,.1);
+      max-height: 220px; overflow-y: auto; z-index: 100; display: none;
     }
-
     .search-results.show { display: block; }
-
     .search-result-item {
-      padding: 10px 12px;
-      cursor: pointer;
-      border-bottom: 1px solid var(--border);
-      transition: background .1s;
+      padding: 10px 12px; cursor: pointer;
+      border-bottom: 1px solid var(--border); transition: background .1s;
     }
-
     .search-result-item:last-child { border-bottom: none; }
     .search-result-item:hover { background: var(--bg-subtle); }
-
-    .deal-title { font-weight: 500; font-size: 13px; color: var(--text); }
-    .deal-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .deal-title { font-weight: 500; font-size: 13px; }
+    .deal-meta  { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 
     .selected-deal {
-      background: var(--bg-subtle);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 12px;
-      margin-bottom: 14px;
-      display: none;
+      background: var(--bg-subtle); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 12px; margin-bottom: 14px; display: none;
     }
-
     .selected-deal.show { display: block; }
-
     .selected-deal .deal-title { font-weight: 600; color: var(--primary); }
-
     .change-link {
-      display: inline-block;
-      margin-top: 6px;
-      font-size: 12px;
-      color: var(--primary);
-      cursor: pointer;
-      text-decoration: underline;
+      display: inline-block; margin-top: 6px;
+      font-size: 12px; color: var(--primary); cursor: pointer; text-decoration: underline;
     }
 
-    /* ── Email preview ── */
     .email-preview {
-      background: var(--bg-subtle);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 12px;
-      margin-bottom: 16px;
+      background: var(--bg-subtle); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 12px; margin-bottom: 16px;
     }
+    .email-preview .subject { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+    .email-preview .meta    { font-size: 11px; color: var(--text-muted); }
 
-    .email-preview .subject {
-      font-weight: 600;
-      font-size: 13px;
-      color: var(--text);
-      margin-bottom: 4px;
-    }
-
-    .email-preview .meta {
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-
-    /* ── Stage badge ── */
     .stage-badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: 600;
-      background: #dbeafe;
-      color: #1e40af;
+      display: inline-block; padding: 2px 8px; border-radius: 20px;
+      font-size: 11px; font-weight: 600; background: #dbeafe; color: #1e40af;
     }
 
-    /* ── Loading spinner ── */
     .spinner {
       width: 16px; height: 16px;
-      border: 2px solid rgba(255,255,255,.3);
-      border-top-color: white;
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-      display: inline-block;
-      vertical-align: middle;
-      margin-right: 6px;
+      border: 2px solid rgba(255,255,255,.3); border-top-color: white;
+      border-radius: 50%; animation: spin .7s linear infinite;
+      display: inline-block; vertical-align: middle; margin-right: 6px;
     }
-
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    .empty-state {
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 13px;
-      padding: 20px;
-    }
 
     .no-results { padding: 12px; text-align: center; color: var(--text-muted); font-size: 13px; }
 
     footer {
-      margin-top: 24px;
-      text-align: center;
-      font-size: 11px;
-      color: var(--text-muted);
-      padding-top: 14px;
-      border-top: 1px solid var(--border);
+      margin-top: 24px; text-align: center; font-size: 11px;
+      color: var(--text-muted); padding-top: 14px; border-top: 1px solid var(--border);
     }
   </style>
 </head>
-
 <body>
 
-  <!-- Header -->
   <div class="header">
     <div class="logo">
       <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
@@ -323,15 +154,15 @@
     </div>
   </div>
 
-  <!-- ══════════ SECTION: LOGIN ══════════ -->
+  <!-- ── LOGIN ── -->
   <div class="section active" id="sectionLogin">
     <div class="alert alert-error" id="loginError"></div>
 
-    <div style="text-align:center; padding: 12px 0 24px;">
+    <div style="text-align:center;padding:12px 0 24px;">
       <div style="width:56px;height:56px;background:var(--primary);border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
         <svg width="30" height="30" viewBox="0 0 24 24" fill="white"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
       </div>
-      <p style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px;">Hub Add-in</p>
+      <p style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px;">Bem-vindo ao Hub</p>
       <p style="font-size:13px;color:var(--text-muted);line-height:1.5;">
         Inicie sessão com a sua conta Hub para anexar emails a oportunidades.
       </p>
@@ -342,38 +173,31 @@
     </button>
   </div>
 
-  <!-- ══════════ SECTION: ATTACH ══════════ -->
+  <!-- ── ATTACH ── -->
   <div class="section" id="sectionAttach">
-    <div class="alert alert-error" id="attachError"></div>
+    <div class="alert alert-error"   id="attachError"></div>
     <div class="alert alert-success" id="attachSuccess"></div>
 
-    <!-- Email preview -->
-    <div class="email-preview" id="emailPreview">
+    <div class="email-preview">
       <div class="subject" id="previewSubject">A carregar email...</div>
-      <div class="meta" id="previewMeta"></div>
+      <div class="meta"    id="previewMeta"></div>
     </div>
 
-    <!-- Deal selector -->
     <div class="field">
       <label>Oportunidade</label>
 
-      <!-- Selected deal display -->
       <div class="selected-deal" id="selectedDealBox">
         <div class="deal-title" id="selectedDealTitle"></div>
-        <div class="deal-meta" id="selectedDealMeta"></div>
+        <div class="deal-meta"  id="selectedDealMeta"></div>
         <span class="change-link" onclick="clearSelectedDeal()">Alterar</span>
       </div>
 
-      <!-- Search input -->
       <div class="search-wrapper" id="searchWrapper">
-        <input
-          type="text"
-          id="dealSearch"
+        <input type="text" id="dealSearch"
           placeholder="Pesquisar oportunidade..."
           oninput="onSearchInput()"
           onfocus="onSearchFocus()"
-          autocomplete="off"
-        />
+          autocomplete="off" />
         <div class="search-results" id="searchResults"></div>
       </div>
     </div>
@@ -386,156 +210,106 @@
   <footer>ITXMind Hub · Outlook Add-in</footer>
 
   <script>
-    // ─────────────────────────────────────────────
-    //  CONFIG — update these if they ever change
-    // ─────────────────────────────────────────────
-    const SUPABASE_URL = 'https://oguddaopsphkvjnqrkmg.supabase.co';
+    const SUPABASE_URL      = 'https://oguddaopsphkvjnqrkmg.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ndWRkYW9wc3Boa3ZqbnFya21nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc5NDczMzEsImV4cCI6MjA4MzUyMzMzMX0.sQ1MKsUQ-y0_G0seSxBCIkldquvHbU0HTKXbDwjaGCk';
-    // The Edge Function URL (deployed in Supabase)
     const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/attach-email-to-deal`;
+    const HUB_LOGIN_URL     = 'https://hub.itxmind.com/login?outlook_addin=1';
 
-    // ─────────────────────────────────────────────
-    //  State
-    // ─────────────────────────────────────────────
-    let supabase;
-    let currentUser = null;
+    const _mem = {};
+    let supabaseClient = null;
+    let currentUser    = null;
     let currentSession = null;
-    let selectedDeal = null;
-    let emailData = null;
-    let searchTimeout = null;
+    let selectedDeal   = null;
+    let emailData      = null;
+    let searchTimeout  = null;
 
-    // ─────────────────────────────────────────────
-    //  Office.js init
-    // ─────────────────────────────────────────────
-    Office.onReady(async (info) => {
-      // Init Supabase client (using global from CDN)
-      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    // ── Office init ──────────────────────────────────────────────────────────
+    Office.onReady(() => {
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: {
           storage: {
-            // Use in-memory storage since localStorage may be restricted in Outlook
-            getItem: (key) => _memStorage[key] || null,
-            setItem: (key, value) => { _memStorage[key] = value; },
-            removeItem: (key) => { delete _memStorage[key]; },
+            getItem:    k => _mem[k] || null,
+            setItem:    (k, v) => { _mem[k] = v; },
+            removeItem: k => { delete _mem[k]; },
           },
-          persistSession: true,
-          autoRefreshToken: true,
+          persistSession: false,
+          autoRefreshToken: false,
         }
       });
 
-      // Check for existing session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        currentSession = session;
-        currentUser = session.user;
-        await initAttachView();
-      }
-
-      // Enter key on password
-      document.getElementById('inputPassword').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleEmailLogin();
-      });
-
-      // Close search results on outside click
-      document.addEventListener('click', (e) => {
+      document.addEventListener('click', e => {
         if (!e.target.closest('#searchWrapper')) {
           document.getElementById('searchResults').classList.remove('show');
         }
       });
     });
 
-    // In-memory auth storage (Outlook restricts localStorage)
-    const _memStorage = {};
-
-    // ─────────────────────────────────────────────
-    //  UI helpers
-    // ─────────────────────────────────────────────
+    // ── UI helpers ───────────────────────────────────────────────────────────
     function showSection(id) {
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
       document.getElementById(id).classList.add('active');
     }
-
     function showAlert(id, msg) {
       const el = document.getElementById(id);
-      el.textContent = msg;
-      el.classList.add('show');
+      el.textContent = msg; el.classList.add('show');
     }
-
-    function hideAlert(id) {
-      document.getElementById(id).classList.remove('show');
-    }
-
-    function setLoading(btnId, loading, label = '') {
+    function hideAlert(id) { document.getElementById(id).classList.remove('show'); }
+    function setLoading(btnId, loading, label) {
       const btn = document.getElementById(btnId);
-      if (loading) {
-        btn.disabled = true;
-        btn.innerHTML = `<span class="spinner"></span>${label || 'A processar...'}`;
-      } else {
-        btn.disabled = false;
-        btn.innerHTML = label;
-      }
+      btn.disabled = loading;
+      btn.innerHTML = loading ? `<span class="spinner"></span>${label || 'A processar...'}` : label;
     }
 
-    // ─────────────────────────────────────────────
-    //  Auth — abre o Hub num dialog do Office
-    // ─────────────────────────────────────────────
+    // ── Auth ─────────────────────────────────────────────────────────────────
     function handleLogin() {
       hideAlert('loginError');
       setLoading('btnLogin', true, 'A abrir o Hub...');
 
-      // Abre o Hub directamente no dialog — evita redirect intermédio que quebra o contexto Office.js
-      const DIALOG_URL = 'https://hub.itxmind.com/login?outlook_addin=1';
-
       Office.context.ui.displayDialogAsync(
-        DIALOG_URL,
+        HUB_LOGIN_URL,
         { height: 80, width: 50, promptBeforeOpen: false },
-        (asyncResult) => {
-          if (asyncResult.status === Office.AsyncResultStatus.Failed) {
-            showAlert('loginError', 'Não foi possível abrir o Hub. Erro: ' + asyncResult.error.message);
+        result => {
+          if (result.status === Office.AsyncResultStatus.Failed) {
+            showAlert('loginError', 'Erro ao abrir o Hub: ' + result.error.message);
             setLoading('btnLogin', false, 'Entrar no Hub');
             return;
           }
 
-          const dialog = asyncResult.value;
+          const dialog = result.value;
 
-          // O Hub envia o token após login via Office.context.ui.messageParent()
-          dialog.addEventHandler(Office.EventType.DialogMessageReceived, async (arg) => {
+          dialog.addEventHandler(Office.EventType.DialogMessageReceived, async arg => {
             dialog.close();
-
             let msg;
-            try { msg = JSON.parse(arg.message); } catch(e) {
-              showAlert('loginError', 'Erro ao processar resposta de autenticação.');
+            try { msg = JSON.parse(arg.message); } catch (e) {
+              showAlert('loginError', 'Erro ao processar resposta. Tenta novamente.');
               setLoading('btnLogin', false, 'Entrar no Hub');
               return;
             }
 
             if (msg.type === 'AUTH_SUCCESS' && msg.access_token) {
-              // Reconstrói a sessão Supabase com os tokens recebidos do Hub
-              const { data, error } = await supabase.auth.setSession({
+              const { data, error } = await supabaseClient.auth.setSession({
                 access_token: msg.access_token,
                 refresh_token: msg.refresh_token,
               });
-
               if (error || !data.session) {
                 showAlert('loginError', 'Sessão inválida. Tenta novamente.');
                 setLoading('btnLogin', false, 'Entrar no Hub');
                 return;
               }
-
               currentSession = data.session;
-              currentUser = data.user;
+              currentUser    = data.user;
               await initAttachView();
-
             } else {
               showAlert('loginError', 'Login cancelado. Tenta novamente.');
               setLoading('btnLogin', false, 'Entrar no Hub');
             }
           });
 
-          // Utilizador fechou o dialog manualmente (12006 = fechado pelo utilizador — não é erro)
-          dialog.addEventHandler(Office.EventType.DialogEventReceived, (arg) => {
+          // 12006 = utilizador fechou o dialog manualmente, não é erro
+          dialog.addEventHandler(Office.EventType.DialogEventReceived, arg => {
             setLoading('btnLogin', false, 'Entrar no Hub');
             if (arg.error !== 12006) {
-              showAlert('loginError', 'A janela foi fechada inesperadamente. Tenta novamente.');
+              showAlert('loginError', 'Janela fechada inesperadamente. Tenta novamente.');
             }
           });
         }
@@ -543,87 +317,47 @@
     }
 
     async function handleSignOut() {
-      await supabase.auth.signOut();
-      currentUser = null;
-      currentSession = null;
-      selectedDeal = null;
-      emailData = null;
+      currentUser = currentSession = selectedDeal = emailData = null;
       document.getElementById('userBadge').style.display = 'none';
       showSection('sectionLogin');
       setLoading('btnLogin', false, 'Entrar no Hub');
     }
 
-    // ─────────────────────────────────────────────
-    //  Attach view init — load email from Outlook
-    // ─────────────────────────────────────────────
+    // ── After login ──────────────────────────────────────────────────────────
     async function initAttachView() {
       showSection('sectionAttach');
       document.getElementById('userBadge').style.display = 'flex';
       document.getElementById('userEmail').textContent = currentUser.email;
-
       await loadEmailData();
     }
 
     function loadEmailData() {
-      return new Promise((resolve) => {
-        const item = Office.context.mailbox.item;
-
+      return new Promise(resolve => {
+        const item = Office.context.mailbox?.item;
         if (!item) {
-          // Dev/test fallback
           emailData = {
-            subject: '(email de teste)',
-            sender_name: 'Teste',
-            sender_email: 'teste@exemplo.pt',
-            received_at: new Date().toISOString(),
-            body_text: 'Corpo do email de teste.',
-            internet_message_id: 'test-' + Date.now(),
-            recipients: [],
+            subject: '(email de teste)', sender_name: 'Teste',
+            sender_email: 'teste@exemplo.pt', received_at: new Date().toISOString(),
+            body_text: 'Teste.', internet_message_id: 'test-' + Date.now(), recipients: [],
           };
           renderEmailPreview();
           return resolve();
         }
-
-        // Read subject
-        const subject = item.subject || '(sem assunto)';
-        const sender = item.sender || item.from || {};
-        const senderName = sender.displayName || sender.emailAddress || '';
+        const subject     = item.subject || '(sem assunto)';
+        const sender      = item.sender || item.from || {};
+        const senderName  = sender.displayName || sender.emailAddress || '';
         const senderEmail = sender.emailAddress || '';
+        const recipients  = (item.to || []).map(r => ({ name: r.displayName || '', email: r.emailAddress || '' }));
+        const messageId   = item.internetMessageId || null;
+        const receivedAt  = item.dateTimeCreated ? item.dateTimeCreated.toISOString() : new Date().toISOString();
 
-        // Get recipients
-        const toRecipients = (item.to || []).map(r => ({
-          name: r.displayName || r.emailAddress || '',
-          email: r.emailAddress || '',
-        }));
-
-        // Get internet message ID (unique per email)
-        const messageId = item.internetMessageId || null;
-        const receivedAt = item.dateTimeCreated
-          ? item.dateTimeCreated.toISOString()
-          : new Date().toISOString();
-
-        // Get body text
-        item.body.getAsync(Office.CoercionType.Text, (result) => {
-          const bodyText = result.status === Office.AsyncResultStatus.Succeeded
-            ? result.value || ''
-            : '';
-
-          // Get HTML body
-          item.body.getAsync(Office.CoercionType.Html, (htmlResult) => {
-            const bodyHtml = htmlResult.status === Office.AsyncResultStatus.Succeeded
-              ? htmlResult.value || ''
-              : '';
-
-            emailData = {
-              subject,
-              sender_name: senderName,
-              sender_email: senderEmail,
-              received_at: receivedAt,
-              body_text: bodyText,
-              body_html: bodyHtml,
-              internet_message_id: messageId,
-              recipients: toRecipients,
-            };
-
+        item.body.getAsync(Office.CoercionType.Text, r1 => {
+          const bodyText = r1.status === Office.AsyncResultStatus.Succeeded ? r1.value || '' : '';
+          item.body.getAsync(Office.CoercionType.Html, r2 => {
+            const bodyHtml = r2.status === Office.AsyncResultStatus.Succeeded ? r2.value || '' : '';
+            emailData = { subject, sender_name: senderName, sender_email: senderEmail,
+              received_at: receivedAt, body_text: bodyText, body_html: bodyHtml,
+              internet_message_id: messageId, recipients };
             renderEmailPreview();
             resolve();
           });
@@ -635,64 +369,46 @@
       if (!emailData) return;
       document.getElementById('previewSubject').textContent = emailData.subject;
       const date = new Date(emailData.received_at).toLocaleString('pt-PT', {
-        day: '2-digit', month: '2-digit', year: 'numeric',
-        hour: '2-digit', minute: '2-digit',
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
       });
       document.getElementById('previewMeta').textContent =
         `De: ${emailData.sender_name} <${emailData.sender_email}> · ${date}`;
     }
 
-    // ─────────────────────────────────────────────
-    //  Deal search
-    // ─────────────────────────────────────────────
+    // ── Deal search ──────────────────────────────────────────────────────────
     function onSearchInput() {
       clearTimeout(searchTimeout);
       searchTimeout = setTimeout(searchDeals, 300);
     }
-
     function onSearchFocus() {
-      if (document.getElementById('dealSearch').value) {
-        searchDeals();
-      }
+      if (document.getElementById('dealSearch').value) searchDeals();
     }
 
     async function searchDeals() {
-      const query = document.getElementById('dealSearch').value.trim();
+      const query     = document.getElementById('dealSearch').value.trim();
       const resultsEl = document.getElementById('searchResults');
-
       resultsEl.innerHTML = '<div class="no-results">A pesquisar...</div>';
       resultsEl.classList.add('show');
-
       try {
-        const token = currentSession?.access_token;
-        const url = `${EDGE_FUNCTION_URL}?search=${encodeURIComponent(query)}`;
-        const resp = await fetch(url, {
+        const resp = await fetch(`${EDGE_FUNCTION_URL}?search=${encodeURIComponent(query)}`, {
           headers: {
-            'Authorization': `Bearer ${token}`,
+            'Authorization': `Bearer ${currentSession.access_token}`,
             'apikey': SUPABASE_ANON_KEY,
           }
         });
-
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.error || 'Erro ao pesquisar');
-
         const deals = data.deals || [];
-
         if (!deals.length) {
           resultsEl.innerHTML = '<div class="no-results">Nenhuma oportunidade encontrada</div>';
           return;
         }
-
-        resultsEl.innerHTML = deals.map(deal => `
-          <div class="search-result-item" onclick="selectDeal(${JSON.stringify(deal).replace(/"/g, '&quot;')})">
-            <div class="deal-title">${escHtml(deal.title)}</div>
-            <div class="deal-meta">
-              ${deal.client?.name ? escHtml(deal.client.name) + ' · ' : ''}
-              <span class="stage-badge">${stageLabel(deal.stage)}</span>
-            </div>
-          </div>
-        `).join('');
-
+        resultsEl.innerHTML = deals.map(d =>
+          `<div class="search-result-item" onclick='selectDeal(${JSON.stringify(d).replace(/'/g, "&#39;")})'>
+            <div class="deal-title">${esc(d.title)}</div>
+            <div class="deal-meta">${d.client?.name ? esc(d.client.name) + ' · ' : ''}<span class="stage-badge">${stageLabel(d.stage)}</span></div>
+          </div>`
+        ).join('');
       } catch (err) {
         resultsEl.innerHTML = `<div class="no-results" style="color:var(--danger)">${err.message}</div>`;
       }
@@ -700,11 +416,9 @@
 
     function selectDeal(deal) {
       selectedDeal = deal;
-
       document.getElementById('selectedDealTitle').textContent = deal.title;
       document.getElementById('selectedDealMeta').textContent =
         (deal.client?.name ? deal.client.name + ' · ' : '') + stageLabel(deal.stage);
-
       document.getElementById('selectedDealBox').classList.add('show');
       document.getElementById('searchWrapper').style.display = 'none';
       document.getElementById('searchResults').classList.remove('show');
@@ -719,73 +433,48 @@
       document.getElementById('btnAttach').disabled = true;
     }
 
-    // ─────────────────────────────────────────────
-    //  Attach email
-    // ─────────────────────────────────────────────
+    // ── Attach email ─────────────────────────────────────────────────────────
     async function handleAttach() {
       hideAlert('attachError');
       hideAlert('attachSuccess');
-
       if (!selectedDeal || !emailData) return;
-
       setLoading('btnAttach', true, 'A anexar...');
-
       try {
-        const token = currentSession?.access_token;
         const resp = await fetch(EDGE_FUNCTION_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
+            'Authorization': `Bearer ${currentSession.access_token}`,
             'apikey': SUPABASE_ANON_KEY,
           },
-          body: JSON.stringify({
-            deal_id: selectedDeal.id,
-            email: emailData,
-          }),
+          body: JSON.stringify({ deal_id: selectedDeal.id, email: emailData }),
         });
-
         const data = await resp.json();
-
         if (resp.status === 409) {
-          showAlert('attachError', 'Este email já foi anteriormente anexado a esta oportunidade.');
+          showAlert('attachError', 'Este email já foi anexado a esta oportunidade.');
           setLoading('btnAttach', false, 'Anexar Email');
           return;
         }
-
         if (!resp.ok) throw new Error(data.error || 'Erro desconhecido');
-
-        showAlert('attachSuccess', `✓ Email anexado com sucesso à oportunidade "${selectedDeal.title}"`);
+        showAlert('attachSuccess', `✓ Email anexado com sucesso a "${selectedDeal.title}"`);
         setLoading('btnAttach', false, 'Anexar Email');
-
-        // Reset selection after success so user can attach to another deal if needed
-        setTimeout(() => {
-          clearSelectedDeal();
-          hideAlert('attachSuccess');
-        }, 4000);
-
+        setTimeout(() => { clearSelectedDeal(); hideAlert('attachSuccess'); }, 4000);
       } catch (err) {
         showAlert('attachError', `Erro: ${err.message}`);
         setLoading('btnAttach', false, 'Anexar Email');
       }
     }
 
-    // ─────────────────────────────────────────────
-    //  Utilities
-    // ─────────────────────────────────────────────
-    function escHtml(str) {
-      return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    // ── Utils ────────────────────────────────────────────────────────────────
+    function esc(s) {
+      return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
-
     const STAGE_LABELS = {
-      lead: 'Lead', qualification: 'Qualificação', proposal: 'Proposta',
-      negotiation: 'Negociação', won: 'Ganho', lost: 'Perdido',
-      prospect: 'Prospeção', presales: 'Pré-venda',
+      lead:'Lead', qualification:'Qualificação', proposal:'Proposta',
+      negotiation:'Negociação', won:'Ganho', lost:'Perdido',
+      prospect:'Prospeção', presales:'Pré-venda',
     };
-
-    function stageLabel(stage) {
-      return STAGE_LABELS[stage] || stage || '–';
-    }
+    function stageLabel(s) { return STAGE_LABELS[s] || s || '–'; }
   </script>
 </body>
 </html>
