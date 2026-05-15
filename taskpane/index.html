@@ -395,7 +395,7 @@
     </button>
   </div>
 
-  <footer>Hub · Outlook Add-in</footer>
+  <footer>ITXMind Hub · Outlook Add-in</footer>
 
   <script>
     // ─────────────────────────────────────────────
@@ -515,15 +515,61 @@
       await initAttachView();
     }
 
-    async function handleMicrosoftLogin() {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'azure',
-        options: {
-          redirectTo: window.location.href,
-          scopes: 'openid profile email',
+    function handleMicrosoftLogin() {
+      hideAlert('loginError');
+
+      const DIALOG_URL = 'https://afonsocanato.github.io/HostingTaskpane/taskpane/auth-dialog.html';
+
+      Office.context.ui.displayDialogAsync(
+        DIALOG_URL,
+        { height: 60, width: 40, promptBeforeOpen: false },
+        (asyncResult) => {
+          if (asyncResult.status === Office.AsyncResultStatus.Failed) {
+            showAlert('loginError', 'Não foi possível abrir a janela de login. Erro: ' + asyncResult.error.message);
+            return;
+          }
+
+          const dialog = asyncResult.value;
+
+          // Recebe o token enviado pelo auth-dialog.html
+          dialog.addEventHandler(Office.EventType.DialogMessageReceived, async (arg) => {
+            dialog.close();
+
+            let msg;
+            try { msg = JSON.parse(arg.message); } catch(e) {
+              showAlert('loginError', 'Erro ao processar resposta de autenticação.');
+              return;
+            }
+
+            if (msg.type === 'AUTH_SUCCESS') {
+              // Reconstrói a sessão Supabase com os tokens recebidos do dialog
+              const { data, error } = await supabase.auth.setSession({
+                access_token: msg.access_token,
+                refresh_token: msg.refresh_token,
+              });
+
+              if (error || !data.session) {
+                showAlert('loginError', 'Sessão inválida. Tenta novamente.');
+                return;
+              }
+
+              currentSession = data.session;
+              currentUser = data.user;
+              await initAttachView();
+
+            } else {
+              showAlert('loginError', 'Login cancelado. Tenta novamente.');
+            }
+          });
+
+          // Utilizador fechou o dialog manualmente (código 12006 = fechado pelo utilizador)
+          dialog.addEventHandler(Office.EventType.DialogEventReceived, (arg) => {
+            if (arg.error !== 12006) {
+              showAlert('loginError', 'A janela de login foi fechada inesperadamente.');
+            }
+          });
         }
-      });
-      if (error) showAlert('loginError', 'Erro ao iniciar login com Microsoft.');
+      );
     }
 
     async function handleSignOut() {
