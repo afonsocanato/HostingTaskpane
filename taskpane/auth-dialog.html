@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Hub – A autenticar...</title>
+  <!-- Office.js carregado nativamente — garante context.ui.messageParent disponível -->
   <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -23,7 +24,7 @@
     }
     .logo svg { width: 26px; height: 26px; fill: white; }
     h1 { font-size: 18px; font-weight: 700; color: #111827; margin-bottom: 8px; }
-    p { font-size: 13px; color: #6b7280; margin-bottom: 24px; line-height: 1.5; }
+    p  { font-size: 13px; color: #6b7280; margin-bottom: 24px; line-height: 1.5; }
     .spinner-wrap { display: flex; align-items: center; justify-content: center; gap: 10px; color: #6b7280; font-size: 13px; }
     .spinner {
       width: 20px; height: 20px;
@@ -31,6 +32,7 @@
       border-radius: 50%; animation: spin .7s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .error { background: #fef2f2; color: #e02424; border: 1px solid #fecaca; border-radius: 8px; padding: 12px; font-size: 13px; margin-top: 16px; display: none; }
   </style>
 </head>
 <body>
@@ -39,17 +41,52 @@
       <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
     </div>
     <h1>Hub Add-in</h1>
-    <p>A redirecionar para o Hub...</p>
-    <div class="spinner-wrap">
+    <p id="statusText">A autenticar...</p>
+    <div class="spinner-wrap" id="spinnerWrap">
       <div class="spinner"></div>
-      <span>A aguardar autenticação</span>
+      <span id="spinnerLabel">A processar</span>
     </div>
+    <div class="error" id="errorBox"></div>
   </div>
+
   <script>
-    // Redireciona para o Hub com parâmetro que indica que foi aberto pelo Outlook add-in.
-    // O Hub detecta ?outlook_addin=1, e após login chama Office.context.ui.messageParent()
-    // com o token de sessão para fechar o dialog e autenticar o painel.
-    window.location.href = 'https://hub.itxmind.com/login?outlook_addin=1';
+    // Esta página é aberta como dialog pelo Office.js, por isso tem context.ui disponível.
+    // O Hub redireciona para cá após login, passando os tokens no hash.
+    // Ex: auth-dialog.html#access_token=xxx&refresh_token=yyy
+
+    function showError(msg) {
+      document.getElementById('spinnerWrap').style.display = 'none';
+      const el = document.getElementById('errorBox');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    Office.onReady(() => {
+      const hash = window.location.hash.substring(1); // remover o #
+      const params = new URLSearchParams(hash);
+      const accessToken  = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+
+      if (accessToken) {
+        // Tokens recebidos — enviar ao taskpane e fechar o dialog
+        document.getElementById('statusText').textContent = 'Login efetuado!';
+        document.getElementById('spinnerLabel').textContent = 'A fechar...';
+
+        Office.context.ui.messageParent(JSON.stringify({
+          type: 'AUTH_SUCCESS',
+          access_token: accessToken,
+          refresh_token: refreshToken || '',
+        }));
+      } else {
+        // Sem tokens no hash — redirecionar para o Hub para fazer login
+        document.getElementById('statusText').textContent = 'A redirecionar para o Hub...';
+        document.getElementById('spinnerLabel').textContent = 'A aguardar autenticação';
+
+        // Guardar a origem deste dialog para o Hub poder redirecionar de volta
+        const dialogOrigin = encodeURIComponent(window.location.href.split('#')[0]);
+        window.location.href = 'https://hub.itxmind.com/auth/outlook?dialog_callback=' + dialogOrigin;
+      }
+    });
   </script>
 </body>
 </html>
