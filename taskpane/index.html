@@ -619,40 +619,36 @@
         const fileAttachmentIds = [];
 
         if (emailAttachments.length > 0) {
+          // Obter token REST para aceder aos anexos
+          const restToken = await new Promise((res, rej) => {
+            Office.context.mailbox.getCallbackTokenAsync({ isRest: true }, r => {
+              if (r.status === Office.AsyncResultStatus.Succeeded) res(r.value);
+              else rej(new Error('Sem token REST: ' + (r.error?.message || 'desconhecido')));
+            });
+          });
+          const restUrl = Office.context.mailbox.restUrl || 'https://outlook.office.com/api';
+          const rawId   = Office.context.mailbox.item?.itemId;
+          const msgId   = rawId
+            ? Office.context.mailbox.convertToRestId(rawId, Office.MailboxEnums.RestVersion.v2_0)
+            : null;
+
           for (let i = 0; i < emailAttachments.length; i++) {
             const att = emailAttachments[i];
             setLoading('btnAttach', true, `A anexar ficheiros (${i + 1}/${emailAttachments.length})...`);
             try {
-              // Obter conteúdo do ficheiro via EWS
-              const attContent = await new Promise((res, rej) => {
-                const ewsRequest = `<?xml version="1.0" encoding="utf-8"?>
-<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-               xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-               xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
-               xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types">
-  <soap:Header><t:RequestServerVersion Version="Exchange2013"/></soap:Header>
-  <soap:Body>
-    <GetAttachment xmlns="http://schemas.microsoft.com/exchange/services/2006/messages"
-                   xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types">
-      <AttachmentIds><t:AttachmentId Id="${att.id}"/></AttachmentIds>
-    </GetAttachment>
-  </soap:Body>
-</soap:Envelope>`;
-                Office.context.mailbox.makeEwsRequestAsync(ewsRequest, ewsResult => {
-                  if (ewsResult.status !== Office.AsyncResultStatus.Succeeded) {
-                    return rej(new Error('Erro EWS: ' + (ewsResult.error?.message || 'desconhecido')));
-                  }
-                  try {
-                    const xml = new DOMParser().parseFromString(ewsResult.value, 'text/xml');
-                    const b64 = xml.querySelector('Content')?.textContent || '';
-                    if (!b64) return rej(new Error('Conteúdo vazio'));
-                    res(b64);
-                  } catch (e) { rej(new Error('Erro a parsear EWS')); }
-                });
+              // Obter conteúdo do ficheiro via REST API do Outlook
+              if (!msgId) throw new Error('Sem ID da mensagem');
+              const attUrl = `${restUrl}/v2.0/me/messages/${msgId}/attachments/${att.id}`;
+              const attResp = await fetch(attUrl, {
+                headers: { 'Authorization': `Bearer ${restToken}` }
               });
+              if (!attResp.ok) throw new Error(`REST ${attResp.status}: ${attResp.statusText}`);
+              const attJson = await attResp.json();
+              const b64 = attJson.ContentBytes;
+              if (!b64) throw new Error('ContentBytes vazio');
 
               // Converter base64 → Blob
-              const byteChars = atob(attContent);
+              const byteChars = atob(b64);
               const byteArr = new Uint8Array(byteChars.length);
               for (let b = 0; b < byteChars.length; b++) byteArr[b] = byteChars.charCodeAt(b);
               const attBlob = new Blob([byteArr], { type: att.contentType || 'application/octet-stream' });
