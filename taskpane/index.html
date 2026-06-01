@@ -457,8 +457,18 @@
         const receivedAt  = item.dateTimeCreated ? item.dateTimeCreated.toISOString() : new Date().toISOString();
 
         // Recolher metadados dos anexos do email (ficheiros)
-        const attachments = (item.attachments || [])
-          .filter(a => !a.isInline) // ignorar imagens inline
+        const rawAttachments = item.attachments || [];
+        // Log para debug — visível no ecrã
+        const debugEl = document.getElementById('debugLog');
+        if (debugEl) {
+          debugEl.style.display = 'block';
+          debugEl.textContent = 'item.attachments: ' + rawAttachments.length + '\n';
+          rawAttachments.forEach((a, i) => {
+            debugEl.textContent += i + ': ' + a.name + ' | isInline=' + a.isInline + ' | type=' + a.attachmentType + '\n';
+          });
+        }
+        const attachments = rawAttachments
+          .filter(a => a.isInline !== true) // ignorar só os explicitamente inline
           .map(a => ({
             id:          a.id,
             name:        a.name,
