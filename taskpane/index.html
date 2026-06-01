@@ -639,24 +639,53 @@
 
         if (emailAttachments.length > 0) {
           dbg('Ficheiros encontrados: ' + emailAttachments.length);
-          // Obter token REST (requer ReadWriteMailbox no manifest)
+
+          // Função para obter conteúdo de um anexo via EWS (fallback para Desktop Mac)
+          function getAttachmentViaEWS(attachmentId) {
+            return new Promise((res, rej) => {
+              const ewsRequest = `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+               xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types">
+  <soap:Header><t:RequestServerVersion Version="Exchange2013"/></soap:Header>
+  <soap:Body>
+    <GetAttachment xmlns="http://schemas.microsoft.com/exchange/services/2006/messages"
+                   xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types">
+      <AttachmentIds><t:AttachmentId Id="${attachmentId}"/></AttachmentIds>
+    </GetAttachment>
+  </soap:Body>
+</soap:Envelope>`;
+              Office.context.mailbox.makeEwsRequestAsync(ewsRequest, ewsResult => {
+                if (ewsResult.status !== Office.AsyncResultStatus.Succeeded) {
+                  return rej(new Error('EWS falhou: ' + (ewsResult.error?.message || '?')));
+                }
+                try {
+                  const xml = new DOMParser().parseFromString(ewsResult.value, 'text/xml');
+                  const b64 = xml.querySelector('Content')?.textContent || '';
+                  if (!b64) return rej(new Error('EWS: Content vazio'));
+                  res(b64);
+                } catch(e) { rej(new Error('EWS: erro a parsear XML')); }
+              });
+            });
+          }
+
+          // Tentar REST primeiro; se falhar, usar EWS
           let restToken = null;
           let msgId = null;
           try {
             dbg('A pedir token REST...');
             restToken = await new Promise((res, rej) => {
               Office.context.mailbox.getCallbackTokenAsync({ isRest: true }, r => {
-                if (r.status === Office.AsyncResultStatus.Succeeded) { dbg('Token OK'); res(r.value); }
-                else { dbg('Token FALHOU: ' + (r.error?.message || '?')); rej(new Error('Sem token REST: ' + (r.error?.message || 'desconhecido'))); }
+                if (r.status === Office.AsyncResultStatus.Succeeded) { dbg('Token REST OK'); res(r.value); }
+                else rej(new Error(r.error?.message || 'falhou'));
               });
             });
             const rawId = Office.context.mailbox.item?.itemId;
-            if (rawId) {
-              msgId = Office.context.mailbox.convertToRestId(rawId, Office.MailboxEnums.RestVersion.v2_0);
-            }
+            if (rawId) msgId = Office.context.mailbox.convertToRestId(rawId, Office.MailboxEnums.RestVersion.v2_0);
+            dbg('Modo: REST');
           } catch (tokenErr) {
-            dbg('ERRO token: ' + tokenErr.message);
-            console.warn('Erro ao obter token REST:', tokenErr.message);
+            dbg('REST indisponível (' + tokenErr.message + '), a usar EWS...');
           }
           const restUrl = (Office.context.mailbox.restUrl || 'https://outlook.office.com/api').replace(/\/$/, '');
 
@@ -664,23 +693,30 @@
             const att = emailAttachments[i];
             setLoading('btnAttach', true, `A anexar ficheiros (${i + 1}/${emailAttachments.length})...`);
             try {
-              if (!restToken || !msgId) throw new Error('Token REST ou ID da mensagem indisponível');
+              let b64 = null;
 
-              dbg('A buscar anexo: ' + att.name);
-              dbg('URL: ' + restUrl + '/v2.0/me/messages/' + msgId?.slice(0,20) + '...');
-              // Obter conteúdo via REST API do Outlook
-              const attUrl = `${restUrl}/v2.0/me/messages/${msgId}/attachments/${att.id}`;
-              const attResp = await fetch(attUrl, { headers: { 'Authorization': `Bearer ${restToken}` } });
-              if (!attResp.ok) {
-                const errText = await attResp.text().catch(() => attResp.statusText);
-                dbg('REST ERRO ' + attResp.status + ': ' + errText.slice(0,100));
-                throw new Error(`REST ${attResp.status}: ${errText}`);
+              if (restToken && msgId) {
+                // Tentar REST
+                dbg('REST: a buscar ' + att.name);
+                const attUrl = `${restUrl}/v2.0/me/messages/${msgId}/attachments/${att.id}`;
+                const attResp = await fetch(attUrl, { headers: { 'Authorization': `Bearer ${restToken}` } });
+                if (attResp.ok) {
+                  const attJson = await attResp.json();
+                  b64 = attJson.ContentBytes || null;
+                  dbg('REST: ContentBytes ' + (b64 ? b64.length + ' chars' : 'VAZIO'));
+                } else {
+                  dbg('REST: ' + attResp.status + ', a tentar EWS...');
+                }
               }
-              dbg('REST OK, a ler JSON...');
-              const attJson = await attResp.json();
-              const b64 = attJson.ContentBytes;
-              dbg('ContentBytes: ' + (b64 ? b64.length + ' chars' : 'VAZIO'));
-              if (!b64) throw new Error('ContentBytes vazio na resposta REST');
+
+              if (!b64) {
+                // Fallback para EWS
+                dbg('EWS: a buscar ' + att.name);
+                b64 = await getAttachmentViaEWS(att.id);
+                dbg('EWS: ' + b64.length + ' chars');
+              }
+
+              if (!b64) throw new Error('Não foi possível obter conteúdo do ficheiro');
 
               // Converter base64 → Blob
               const byteChars = atob(b64);
