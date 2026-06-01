@@ -212,7 +212,6 @@
   <div class="section" id="sectionAttach">
     <div class="alert alert-error"   id="attachError"></div>
     <div class="alert alert-success" id="attachSuccess"></div>
-    <div id="debugLog" style="display:none;margin-bottom:10px;padding:8px;background:#f0f4ff;border:1px solid #c7d7f0;border-radius:8px;font-size:11px;font-family:monospace;white-space:pre-wrap;word-break:break-all;max-height:150px;overflow-y:auto;color:#333;"></div>
 
     <div class="email-preview">
       <div class="subject" id="previewSubject">A carregar email...</div>
@@ -458,15 +457,6 @@
 
         // Recolher metadados dos anexos do email (ficheiros)
         const rawAttachments = item.attachments || [];
-        // Log para debug — visível no ecrã
-        const debugEl = document.getElementById('debugLog');
-        if (debugEl) {
-          debugEl.style.display = 'block';
-          debugEl.textContent = 'item.attachments: ' + rawAttachments.length + '\n';
-          rawAttachments.forEach((a, i) => {
-            debugEl.textContent += i + ': ' + a.name + ' | isInline=' + a.isInline + ' | type=' + a.attachmentType + '\n';
-          });
-        }
         const attachments = rawAttachments
           .filter(a => a.isInline !== true) // ignorar só os explicitamente inline
           .map(a => ({
@@ -561,14 +551,6 @@
       document.getElementById('searchWrapper').style.display = 'block';
       document.getElementById('dealSearch').value = '';
       document.getElementById('btnAttach').disabled = true;
-    }
-
-    // ── Debug log ────────────────────────────────────────────────────────────
-    function dbg(msg) {
-      const el = document.getElementById('debugLog');
-      el.style.display = 'block';
-      el.textContent += new Date().toLocaleTimeString('pt-PT') + ' ' + msg + '\n';
-      el.scrollTop = el.scrollHeight;
     }
 
     // ── Attach email — directo via Supabase client ───────────────────────────
@@ -667,7 +649,7 @@
             try {
               dbg('A obter conteúdo de: ' + att.name);
               const b64 = await getAttachmentContent(att.id);
-              dbg('Conteúdo obtido: ' + b64.length + ' chars');
+              console.log('Conteúdo obtido: ' + b64.length + ' chars');
 
               // Converter base64 → Blob
               const byteChars = atob(b64);
