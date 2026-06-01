@@ -212,6 +212,7 @@
   <div class="section" id="sectionAttach">
     <div class="alert alert-error"   id="attachError"></div>
     <div class="alert alert-success" id="attachSuccess"></div>
+    <div id="debugLog" style="display:none;margin-bottom:10px;padding:8px;background:#f0f4ff;border:1px solid #c7d7f0;border-radius:8px;font-size:11px;font-family:monospace;white-space:pre-wrap;word-break:break-all;max-height:150px;overflow-y:auto;color:#333;"></div>
 
     <div class="email-preview">
       <div class="subject" id="previewSubject">A carregar email...</div>
@@ -552,6 +553,14 @@
       document.getElementById('btnAttach').disabled = true;
     }
 
+    // ── Debug log ────────────────────────────────────────────────────────────
+    function dbg(msg) {
+      const el = document.getElementById('debugLog');
+      el.style.display = 'block';
+      el.textContent += new Date().toLocaleTimeString('pt-PT') + ' ' + msg + '\n';
+      el.scrollTop = el.scrollHeight;
+    }
+
     // ── Attach email — directo via Supabase client ───────────────────────────
     async function handleAttach() {
       hideAlert('attachError');
@@ -619,14 +628,16 @@
         const fileAttachmentIds = [];
 
         if (emailAttachments.length > 0) {
+          dbg('Ficheiros encontrados: ' + emailAttachments.length);
           // Obter token REST (requer ReadWriteMailbox no manifest)
           let restToken = null;
           let msgId = null;
           try {
+            dbg('A pedir token REST...');
             restToken = await new Promise((res, rej) => {
               Office.context.mailbox.getCallbackTokenAsync({ isRest: true }, r => {
-                if (r.status === Office.AsyncResultStatus.Succeeded) res(r.value);
-                else rej(new Error('Sem token REST: ' + (r.error?.message || 'desconhecido')));
+                if (r.status === Office.AsyncResultStatus.Succeeded) { dbg('Token OK'); res(r.value); }
+                else { dbg('Token FALHOU: ' + (r.error?.message || '?')); rej(new Error('Sem token REST: ' + (r.error?.message || 'desconhecido'))); }
               });
             });
             const rawId = Office.context.mailbox.item?.itemId;
@@ -634,6 +645,7 @@
               msgId = Office.context.mailbox.convertToRestId(rawId, Office.MailboxEnums.RestVersion.v2_0);
             }
           } catch (tokenErr) {
+            dbg('ERRO token: ' + tokenErr.message);
             console.warn('Erro ao obter token REST:', tokenErr.message);
           }
           const restUrl = (Office.context.mailbox.restUrl || 'https://outlook.office.com/api').replace(/\/$/, '');
@@ -644,15 +656,20 @@
             try {
               if (!restToken || !msgId) throw new Error('Token REST ou ID da mensagem indisponível');
 
+              dbg('A buscar anexo: ' + att.name);
+              dbg('URL: ' + restUrl + '/v2.0/me/messages/' + msgId?.slice(0,20) + '...');
               // Obter conteúdo via REST API do Outlook
               const attUrl = `${restUrl}/v2.0/me/messages/${msgId}/attachments/${att.id}`;
               const attResp = await fetch(attUrl, { headers: { 'Authorization': `Bearer ${restToken}` } });
               if (!attResp.ok) {
                 const errText = await attResp.text().catch(() => attResp.statusText);
+                dbg('REST ERRO ' + attResp.status + ': ' + errText.slice(0,100));
                 throw new Error(`REST ${attResp.status}: ${errText}`);
               }
+              dbg('REST OK, a ler JSON...');
               const attJson = await attResp.json();
               const b64 = attJson.ContentBytes;
+              dbg('ContentBytes: ' + (b64 ? b64.length + ' chars' : 'VAZIO'));
               if (!b64) throw new Error('ContentBytes vazio na resposta REST');
 
               // Converter base64 → Blob
@@ -684,6 +701,7 @@
               fileAttachmentIds.push(attRecord.id);
 
             } catch (attErr) {
+              dbg('FALHOU "' + att.name + '": ' + attErr.message);
               console.warn(`Não foi possível anexar ficheiro "${att.name}":`, attErr.message);
             }
           }
