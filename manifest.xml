@@ -14,8 +14,8 @@
   <Description DefaultValue="Anexe emails do Outlook diretamente a oportunidades no ITXMind Hub"/>
 
   <!-- Ícones públicos do Office CDN (sempre acessíveis, não requerem setup) -->
-  <IconUrl DefaultValue="https://afonsocanato.github.io/HostingTaskpane/Hub-Outlook-Addin/taskpane/assets/icon-16.png"/>
-  <HighResolutionIconUrl DefaultValue="https://afonsocanato.github.io/HostingTaskpane/taskpane/assets/icon-80.png"/>
+  <IconUrl DefaultValue="https://itxmind.github.io/Hub-Outlook-Addin/taskpane/assets/icon-16.png"/>
+  <HighResolutionIconUrl DefaultValue="https://itxmind.github.io/Hub-Outlook-Addin/taskpane/assets/icon-80.png"/>
   <SupportUrl DefaultValue="https://itxmind.pt"/>
 
   <AppDomains>
@@ -31,7 +31,7 @@
 
   <Requirements>
     <Sets>
-      <Set Name="Mailbox" MinVersion="1.3"/>
+      <Set Name="Mailbox" MinVersion="1.8"/>
     </Sets>
   </Requirements>
 
@@ -44,7 +44,7 @@
     </Form>
   </FormSettings>
 
-  <Permissions>ReadWriteMailbox</Permissions>
+  <Permissions>ReadItem</Permissions>
 
   <Rule xsi:type="RuleCollection" Mode="Or">
     <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read"/>
@@ -56,7 +56,7 @@
   <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides" xsi:type="VersionOverridesV1_0">
     <Requirements>
       <bt:Sets DefaultMinVersion="1.3">
-        <bt:Set Name="Mailbox"/>
+        <bt:Set Name="Mailbox" DefaultMinVersion="1.8"/>
       </bt:Sets>
     </Requirements>
 
