@@ -640,119 +640,34 @@
         if (emailAttachments.length > 0) {
           dbg('Ficheiros encontrados: ' + emailAttachments.length);
 
-          // Obter anexos via EWS usando GetItem no email e depois GetAttachment
-          function getAttachmentsViaEWS(itemId) {
+          // Obter conteúdo do anexo via getAttachmentContentAsync (Office.js 1.8+)
+          function getAttachmentContent(attachmentId) {
             return new Promise((res, rej) => {
-              // Primeiro: GetItem para obter os AttachmentIds reais do EWS
-              const getItemRequest = `<?xml version="1.0" encoding="utf-8"?>
-<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-               xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-               xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
-               xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types">
-  <soap:Header><t:RequestServerVersion Version="Exchange2013"/></soap:Header>
-  <soap:Body>
-    <GetItem xmlns="http://schemas.microsoft.com/exchange/services/2006/messages"
-             xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types">
-      <ItemShape>
-        <t:BaseShape>IdOnly</t:BaseShape>
-        <t:AdditionalProperties>
-          <t:FieldURI FieldURI="item:Attachments"/>
-        </t:AdditionalProperties>
-      </ItemShape>
-      <ItemIds>
-        <t:ItemId Id="${itemId}"/>
-      </ItemIds>
-    </GetItem>
-  </soap:Body>
-</soap:Envelope>`;
-              Office.context.mailbox.makeEwsRequestAsync(getItemRequest, getItemResult => {
-                if (getItemResult.status !== Office.AsyncResultStatus.Succeeded) {
-                  return rej(new Error('GetItem falhou: ' + (getItemResult.error?.message || '?')));
+              Office.context.mailbox.item.getAttachmentContentAsync(
+                attachmentId,
+                { asyncContext: attachmentId },
+                result => {
+                  if (result.status === Office.AsyncResultStatus.Failed) {
+                    return rej(new Error('getAttachmentContentAsync falhou: ' + (result.error?.message || '?')));
+                  }
+                  const content = result.value;
+                  if (content.format === Office.MailboxEnums.AttachmentContentFormat.Base64) {
+                    res(content.content);
+                  } else {
+                    rej(new Error('Formato não suportado: ' + content.format));
+                  }
                 }
-                try {
-                  const xml = new DOMParser().parseFromString(getItemResult.value, 'text/xml');
-                  const attIds = Array.from(xml.querySelectorAll('AttachmentId')).map(n => n.getAttribute('Id')).filter(Boolean);
-                  dbg('EWS AttachmentIds encontrados: ' + attIds.length);
-                  res(attIds);
-                } catch(e) { rej(new Error('EWS GetItem: erro a parsear XML')); }
-              });
+              );
             });
-          }
-
-          function getAttachmentContentViaEWS(ewsAttachmentId) {
-            return new Promise((res, rej) => {
-              const ewsRequest = `<?xml version="1.0" encoding="utf-8"?>
-<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-               xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-               xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
-               xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types">
-  <soap:Header><t:RequestServerVersion Version="Exchange2013"/></soap:Header>
-  <soap:Body>
-    <GetAttachment xmlns="http://schemas.microsoft.com/exchange/services/2006/messages"
-                   xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types">
-      <AttachmentIds><t:AttachmentId Id="${ewsAttachmentId}"/></AttachmentIds>
-    </GetAttachment>
-  </soap:Body>
-</soap:Envelope>`;
-              Office.context.mailbox.makeEwsRequestAsync(ewsRequest, ewsResult => {
-                if (ewsResult.status !== Office.AsyncResultStatus.Succeeded) {
-                  return rej(new Error('GetAttachment falhou: ' + (ewsResult.error?.message || '?')));
-                }
-                try {
-                  const xml = new DOMParser().parseFromString(ewsResult.value, 'text/xml');
-                  const b64 = xml.querySelector('Content')?.textContent || '';
-                  const name = xml.querySelector('Name')?.textContent || '';
-                  if (!b64) return rej(new Error('EWS: Content vazio'));
-                  res({ b64, name });
-                } catch(e) { rej(new Error('EWS GetAttachment: erro a parsear XML')); }
-              });
-            });
-          }
-
-          // Obter IDs EWS reais via GetItem (necessário no Desktop Mac)
-          const rawItemId = Office.context.mailbox.item?.itemId;
-          let ewsAttachmentIds = [];
-          if (rawItemId) {
-            try {
-              // Converter para formato EWS se estiver em formato REST
-              let ewsItemId = rawItemId;
-              try {
-                ewsItemId = Office.context.mailbox.convertToEwsId(
-                  rawItemId,
-                  Office.MailboxEnums.RestVersion.v2_0
-                );
-                dbg('ID convertido para EWS: ' + ewsItemId.slice(0, 30) + '...');
-              } catch(convErr) {
-                dbg('Conversão ID falhou, a usar raw: ' + convErr.message);
-              }
-              dbg('EWS: a obter IDs dos anexos via GetItem...');
-              ewsAttachmentIds = await getAttachmentsViaEWS(ewsItemId);
-            } catch(e) {
-              dbg('EWS GetItem falhou: ' + e.message);
-            }
           }
 
           for (let i = 0; i < emailAttachments.length; i++) {
             const att = emailAttachments[i];
             setLoading('btnAttach', true, `A anexar ficheiros (${i + 1}/${emailAttachments.length})...`);
             try {
-              let b64 = null;
-              let fileName = att.name;
-
-              // Usar o ID EWS correspondente (por índice)
-              const ewsId = ewsAttachmentIds[i] || null;
-              if (ewsId) {
-                dbg('EWS: a buscar conteúdo do anexo ' + (i+1));
-                const result = await getAttachmentContentViaEWS(ewsId);
-                b64 = result.b64;
-                if (result.name) fileName = result.name;
-                dbg('EWS OK: ' + b64.length + ' chars, nome: ' + fileName);
-              } else {
-                dbg('Sem ID EWS para anexo ' + i + ', a saltar...');
-                throw new Error('ID EWS não disponível');
-              }
-
-              if (!b64) throw new Error('Não foi possível obter conteúdo do ficheiro');
+              dbg('A obter conteúdo de: ' + att.name);
+              const b64 = await getAttachmentContent(att.id);
+              dbg('Conteúdo obtido: ' + b64.length + ' chars');
 
               // Converter base64 → Blob
               const byteChars = atob(b64);
@@ -760,7 +675,7 @@
               for (let b = 0; b < byteChars.length; b++) byteArr[b] = byteChars.charCodeAt(b);
               const attBlob = new Blob([byteArr], { type: att.contentType || 'application/octet-stream' });
 
-              const safeAttName = fileName.replace(/[^a-zA-Z0-9.\-_]/g, '_').slice(0, 100);
+              const safeAttName = att.name.replace(/[^a-zA-Z0-9.\-_]/g, '_').slice(0, 100);
               const attPath = `${dealId}/email_att_${Date.now()}_${safeAttName}`;
 
               const { error: attUploadErr } = await supabaseClient.storage
@@ -772,7 +687,7 @@
                 .from('deal_attachments')
                 .insert({
                   deal_id:     dealId,
-                  file_name:   fileName,
+                  file_name:   att.name,
                   file_url:    attPath,
                   file_type:   att.contentType || null,
                   file_size:   att.size || attBlob.size,
