@@ -714,8 +714,19 @@
           let ewsAttachmentIds = [];
           if (rawItemId) {
             try {
+              // Converter para formato EWS se estiver em formato REST
+              let ewsItemId = rawItemId;
+              try {
+                ewsItemId = Office.context.mailbox.convertToEwsId(
+                  rawItemId,
+                  Office.MailboxEnums.RestVersion.v2_0
+                );
+                dbg('ID convertido para EWS: ' + ewsItemId.slice(0, 30) + '...');
+              } catch(convErr) {
+                dbg('Conversão ID falhou, a usar raw: ' + convErr.message);
+              }
               dbg('EWS: a obter IDs dos anexos via GetItem...');
-              ewsAttachmentIds = await getAttachmentsViaEWS(rawItemId);
+              ewsAttachmentIds = await getAttachmentsViaEWS(ewsItemId);
             } catch(e) {
               dbg('EWS GetItem falhou: ' + e.message);
             }
