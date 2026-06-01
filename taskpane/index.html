@@ -619,33 +619,41 @@
         const fileAttachmentIds = [];
 
         if (emailAttachments.length > 0) {
-          // Obter token REST para aceder aos anexos
-          const restToken = await new Promise((res, rej) => {
-            Office.context.mailbox.getCallbackTokenAsync({ isRest: true }, r => {
-              if (r.status === Office.AsyncResultStatus.Succeeded) res(r.value);
-              else rej(new Error('Sem token REST: ' + (r.error?.message || 'desconhecido')));
+          // Obter token REST (requer ReadWriteMailbox no manifest)
+          let restToken = null;
+          let msgId = null;
+          try {
+            restToken = await new Promise((res, rej) => {
+              Office.context.mailbox.getCallbackTokenAsync({ isRest: true }, r => {
+                if (r.status === Office.AsyncResultStatus.Succeeded) res(r.value);
+                else rej(new Error('Sem token REST: ' + (r.error?.message || 'desconhecido')));
+              });
             });
-          });
-          const restUrl = Office.context.mailbox.restUrl || 'https://outlook.office.com/api';
-          const rawId   = Office.context.mailbox.item?.itemId;
-          const msgId   = rawId
-            ? Office.context.mailbox.convertToRestId(rawId, Office.MailboxEnums.RestVersion.v2_0)
-            : null;
+            const rawId = Office.context.mailbox.item?.itemId;
+            if (rawId) {
+              msgId = Office.context.mailbox.convertToRestId(rawId, Office.MailboxEnums.RestVersion.v2_0);
+            }
+          } catch (tokenErr) {
+            console.warn('Erro ao obter token REST:', tokenErr.message);
+          }
+          const restUrl = (Office.context.mailbox.restUrl || 'https://outlook.office.com/api').replace(/\/$/, '');
 
           for (let i = 0; i < emailAttachments.length; i++) {
             const att = emailAttachments[i];
             setLoading('btnAttach', true, `A anexar ficheiros (${i + 1}/${emailAttachments.length})...`);
             try {
-              // Obter conteúdo do ficheiro via REST API do Outlook
-              if (!msgId) throw new Error('Sem ID da mensagem');
+              if (!restToken || !msgId) throw new Error('Token REST ou ID da mensagem indisponível');
+
+              // Obter conteúdo via REST API do Outlook
               const attUrl = `${restUrl}/v2.0/me/messages/${msgId}/attachments/${att.id}`;
-              const attResp = await fetch(attUrl, {
-                headers: { 'Authorization': `Bearer ${restToken}` }
-              });
-              if (!attResp.ok) throw new Error(`REST ${attResp.status}: ${attResp.statusText}`);
+              const attResp = await fetch(attUrl, { headers: { 'Authorization': `Bearer ${restToken}` } });
+              if (!attResp.ok) {
+                const errText = await attResp.text().catch(() => attResp.statusText);
+                throw new Error(`REST ${attResp.status}: ${errText}`);
+              }
               const attJson = await attResp.json();
               const b64 = attJson.ContentBytes;
-              if (!b64) throw new Error('ContentBytes vazio');
+              if (!b64) throw new Error('ContentBytes vazio na resposta REST');
 
               // Converter base64 → Blob
               const byteChars = atob(b64);
