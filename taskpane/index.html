@@ -248,9 +248,8 @@
     const SUPABASE_URL      = 'https://oguddaopsphkvjnqrkmg.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ndWRkYW9wc3Boa3ZqbnFya21nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc5NDczMzEsImV4cCI6MjA4MzUyMzMzMX0.sQ1MKsUQ-y0_G0seSxBCIkldquvHbU0HTKXbDwjaGCk';
     const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/attach-email-to-deal`;
-    const HUB_LOGIN_URL     = 'https://afonsocanato.github.io/HostingTaskpane/taskpane/auth-dialog.html';
+    const HUB_LOGIN_URL     = 'https://itxmind.github.io/Hub-Outlook-Addin/taskpane/auth-dialog.html';
 
-    const _mem = {};
     let supabaseClient = null;
     let currentUser    = null;
     let currentSession = null;
@@ -258,19 +257,85 @@
     let emailData      = null;
     let searchTimeout  = null;
 
+    // Chaves fixas para guardar tokens — persistem entre sessões via RoamingSettings
+    const TOKEN_KEY   = 'hub_addin_access_token';
+    const REFRESH_KEY = 'hub_addin_refresh_token';
+
+    function saveTokens(accessToken, refreshToken) {
+      try {
+        // Tentar RoamingSettings (persiste no servidor Microsoft — mais fiável)
+        if (Office.context.roamingSettings) {
+          Office.context.roamingSettings.set(TOKEN_KEY, accessToken);
+          Office.context.roamingSettings.set(REFRESH_KEY, refreshToken);
+          Office.context.roamingSettings.saveAsync();
+        }
+      } catch(e) {}
+      try { localStorage.setItem(TOKEN_KEY, accessToken); } catch(e) {}
+      try { localStorage.setItem(REFRESH_KEY, refreshToken); } catch(e) {}
+    }
+
+    function loadTokens() {
+      let access = null, refresh = null;
+      try {
+        if (Office.context.roamingSettings) {
+          access  = Office.context.roamingSettings.get(TOKEN_KEY);
+          refresh = Office.context.roamingSettings.get(REFRESH_KEY);
+        }
+      } catch(e) {}
+      if (!access) {
+        try { access  = localStorage.getItem(TOKEN_KEY); } catch(e) {}
+        try { refresh = localStorage.getItem(REFRESH_KEY); } catch(e) {}
+      }
+      return { access, refresh };
+    }
+
+    function clearTokens() {
+      try {
+        if (Office.context.roamingSettings) {
+          Office.context.roamingSettings.remove(TOKEN_KEY);
+          Office.context.roamingSettings.remove(REFRESH_KEY);
+          Office.context.roamingSettings.saveAsync();
+        }
+      } catch(e) {}
+      try { localStorage.removeItem(TOKEN_KEY); } catch(e) {}
+      try { localStorage.removeItem(REFRESH_KEY); } catch(e) {}
+    }
+
     // ── Office init ──────────────────────────────────────────────────────────
-    Office.onReady(() => {
+    Office.onReady(async () => {
       supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: {
           storage: {
-            getItem:    k => _mem[k] || null,
-            setItem:    (k, v) => { _mem[k] = v; },
-            removeItem: k => { delete _mem[k]; },
+            getItem:    k => { try { return localStorage.getItem(k); } catch(e) { return null; } },
+            setItem:    (k, v) => { try { localStorage.setItem(k, v); } catch(e) {} },
+            removeItem: k => { try { localStorage.removeItem(k); } catch(e) {} },
           },
-          persistSession: false,
-          autoRefreshToken: false,
+          persistSession: true,
+          autoRefreshToken: true,
         }
       });
+
+      // Tentar restaurar sessão a partir dos tokens guardados
+      const { access, refresh } = loadTokens();
+      if (access && refresh) {
+        try {
+          const { data, error } = await supabaseClient.auth.setSession({
+            access_token: access,
+            refresh_token: refresh,
+          });
+          if (!error && data.session) {
+            currentSession = data.session;
+            currentUser    = data.user;
+            // Actualizar tokens guardados (podem ter sido renovados)
+            saveTokens(data.session.access_token, data.session.refresh_token);
+            await initAttachView();
+          } else {
+            clearTokens();
+          }
+        } catch(e) {
+          clearTokens();
+        }
+      }
 
       document.addEventListener('click', e => {
         if (!e.target.closest('#searchWrapper')) {
@@ -333,6 +398,7 @@
               }
               currentSession = data.session;
               currentUser    = data.user;
+              saveTokens(data.session.access_token, data.session.refresh_token);
               await initAttachView();
             } else {
               showAlert('loginError', 'Login cancelado. Tenta novamente.');
@@ -352,6 +418,8 @@
     }
 
     async function handleSignOut() {
+      clearTokens();
+      try { await supabaseClient.auth.signOut(); } catch(e) {}
       currentUser = currentSession = selectedDeal = emailData = null;
       document.getElementById('userBadge').style.display = 'none';
       showSection('sectionLogin');
@@ -374,6 +442,7 @@
             subject: '(email de teste)', sender_name: 'Teste',
             sender_email: 'teste@exemplo.pt', received_at: new Date().toISOString(),
             body_text: 'Teste.', internet_message_id: 'test-' + Date.now(), recipients: [],
+            attachments: [],
           };
           renderEmailPreview();
           return resolve();
@@ -386,13 +455,23 @@
         const messageId   = item.internetMessageId || null;
         const receivedAt  = item.dateTimeCreated ? item.dateTimeCreated.toISOString() : new Date().toISOString();
 
+        // Recolher metadados dos anexos do email (ficheiros)
+        const attachments = (item.attachments || [])
+          .filter(a => !a.isInline) // ignorar imagens inline
+          .map(a => ({
+            id:          a.id,
+            name:        a.name,
+            size:        a.size,
+            contentType: a.contentType,
+          }));
+
         item.body.getAsync(Office.CoercionType.Text, r1 => {
           const bodyText = r1.status === Office.AsyncResultStatus.Succeeded ? r1.value || '' : '';
           item.body.getAsync(Office.CoercionType.Html, r2 => {
             const bodyHtml = r2.status === Office.AsyncResultStatus.Succeeded ? r2.value || '' : '';
             emailData = { subject, sender_name: senderName, sender_email: senderEmail,
               received_at: receivedAt, body_text: bodyText, body_html: bodyHtml,
-              internet_message_id: messageId, recipients };
+              internet_message_id: messageId, recipients, attachments };
             renderEmailPreview();
             resolve();
           });
@@ -406,8 +485,10 @@
       const date = new Date(emailData.received_at).toLocaleString('pt-PT', {
         day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
       });
+      const attachCount = (emailData.attachments || []).length;
+      const attachInfo  = attachCount > 0 ? ` · 📎 ${attachCount} ficheiro${attachCount > 1 ? 's' : ''}` : '';
       document.getElementById('previewMeta').textContent =
-        `De: ${emailData.sender_name} <${emailData.sender_email}> · ${date}`;
+        `De: ${emailData.sender_name} <${emailData.sender_email}> · ${date}${attachInfo}`;
     }
 
     // ── Deal search — directo via Supabase client ────────────────────────────
@@ -533,21 +614,95 @@
 
         if (insertError) throw new Error('Erro ao registar: ' + insertError.message);
 
-        // 4. Inserir também na tabela deal_email_attachments (para o card de emails)
+        // 4. Fazer upload dos ficheiros anexados ao email (se existirem)
+        const emailAttachments = emailData.attachments || [];
+        const fileAttachmentIds = [];
+
+        if (emailAttachments.length > 0) {
+          for (let i = 0; i < emailAttachments.length; i++) {
+            const att = emailAttachments[i];
+            setLoading('btnAttach', true, `A anexar ficheiros (${i + 1}/${emailAttachments.length})...`);
+            try {
+              // Obter conteúdo do ficheiro via EWS
+              const attContent = await new Promise((res, rej) => {
+                const ewsRequest = `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+               xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types">
+  <soap:Header><t:RequestServerVersion Version="Exchange2013"/></soap:Header>
+  <soap:Body>
+    <GetAttachment xmlns="http://schemas.microsoft.com/exchange/services/2006/messages"
+                   xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types">
+      <AttachmentIds><t:AttachmentId Id="${att.id}"/></AttachmentIds>
+    </GetAttachment>
+  </soap:Body>
+</soap:Envelope>`;
+                Office.context.mailbox.makeEwsRequestAsync(ewsRequest, ewsResult => {
+                  if (ewsResult.status !== Office.AsyncResultStatus.Succeeded) {
+                    return rej(new Error('Erro EWS: ' + (ewsResult.error?.message || 'desconhecido')));
+                  }
+                  try {
+                    const xml = new DOMParser().parseFromString(ewsResult.value, 'text/xml');
+                    const b64 = xml.querySelector('Content')?.textContent || '';
+                    if (!b64) return rej(new Error('Conteúdo vazio'));
+                    res(b64);
+                  } catch (e) { rej(new Error('Erro a parsear EWS')); }
+                });
+              });
+
+              // Converter base64 → Blob
+              const byteChars = atob(attContent);
+              const byteArr = new Uint8Array(byteChars.length);
+              for (let b = 0; b < byteChars.length; b++) byteArr[b] = byteChars.charCodeAt(b);
+              const attBlob = new Blob([byteArr], { type: att.contentType || 'application/octet-stream' });
+
+              const safeAttName = att.name.replace(/[^a-zA-Z0-9.\-_]/g, '_').slice(0, 100);
+              const attPath = `${dealId}/email_att_${Date.now()}_${safeAttName}`;
+
+              const { error: attUploadErr } = await supabaseClient.storage
+                .from('deal-attachments')
+                .upload(attPath, attBlob, { contentType: att.contentType || 'application/octet-stream' });
+              if (attUploadErr) throw new Error(attUploadErr.message);
+
+              const { data: attRecord, error: attInsertErr } = await supabaseClient
+                .from('deal_attachments')
+                .insert({
+                  deal_id:     dealId,
+                  file_name:   att.name,
+                  file_url:    attPath,
+                  file_type:   att.contentType || null,
+                  file_size:   att.size || attBlob.size,
+                  uploaded_by: user?.id || null,
+                })
+                .select().single();
+              if (attInsertErr) throw new Error(attInsertErr.message);
+              fileAttachmentIds.push(attRecord.id);
+
+            } catch (attErr) {
+              console.warn(`Não foi possível anexar ficheiro "${att.name}":`, attErr.message);
+            }
+          }
+        }
+
+        // 5. Inserir na tabela deal_email_attachments (com IDs dos ficheiros do email)
         const { error: emailInsertError } = await supabaseClient
           .from('deal_email_attachments')
           .insert({
-            deal_id:              dealId,
-            subject:              emailData.subject,
-            sender_email:         emailData.sender_email,
-            attached_by:          user?.id || null,
-            attachment_id:        attachmentRecord.id,
-            internet_message_id:  emailData.internet_message_id || null,
+            deal_id:                    dealId,
+            subject:                    emailData.subject,
+            sender_email:               emailData.sender_email,
+            attached_by:                user?.id || null,
+            attachment_id:              attachmentRecord.id,
+            internet_message_id:        emailData.internet_message_id || null,
+            email_file_attachment_ids:  fileAttachmentIds,
           });
 
         if (emailInsertError) throw new Error('Erro ao registar email: ' + emailInsertError.message);
 
-        showAlert('attachSuccess', `✓ Email anexado com sucesso a "${selectedDeal.title}"`);
+        const nFiles = fileAttachmentIds.length;
+        const filesMsg = nFiles > 0 ? ` + ${nFiles} ficheiro${nFiles > 1 ? 's' : ''}` : '';
+        showAlert('attachSuccess', `✓ Email${filesMsg} anexado${nFiles > 1 ? 's' : ''} com sucesso a "${selectedDeal.title}"`);
         setLoading('btnAttach', false, 'Anexar Email');
         setTimeout(() => { clearSelectedDeal(); hideAlert('attachSuccess'); }, 4000);
 
