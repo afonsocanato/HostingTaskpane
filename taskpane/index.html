@@ -699,18 +699,22 @@
                 // Tentar REST
                 dbg('REST: a buscar ' + att.name);
                 const attUrl = `${restUrl}/v2.0/me/messages/${msgId}/attachments/${att.id}`;
-                const attResp = await fetch(attUrl, { headers: { 'Authorization': `Bearer ${restToken}` } });
-                if (attResp.ok) {
-                  const attJson = await attResp.json();
-                  b64 = attJson.ContentBytes || null;
-                  dbg('REST: ContentBytes ' + (b64 ? b64.length + ' chars' : 'VAZIO'));
-                } else {
-                  dbg('REST: ' + attResp.status + ', a tentar EWS...');
+                try {
+                  const attResp = await fetch(attUrl, { headers: { 'Authorization': `Bearer ${restToken}` } });
+                  if (attResp.ok) {
+                    const attJson = await attResp.json();
+                    b64 = attJson.ContentBytes || null;
+                    dbg('REST: ContentBytes ' + (b64 ? b64.length + ' chars' : 'VAZIO'));
+                  } else {
+                    dbg('REST: ' + attResp.status + ', a tentar EWS...');
+                  }
+                } catch(restErr) {
+                  dbg('REST erro: ' + restErr.message + ', a tentar EWS...');
                 }
               }
 
+              // Fallback para EWS (sempre que REST não devolveu conteúdo)
               if (!b64) {
-                // Fallback para EWS
                 dbg('EWS: a buscar ' + att.name);
                 b64 = await getAttachmentViaEWS(att.id);
                 dbg('EWS: ' + b64.length + ' chars');
