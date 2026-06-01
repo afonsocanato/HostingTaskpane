@@ -240,6 +240,70 @@
     <button class="btn btn-primary" id="btnAttach" onclick="handleAttach()" disabled>
       Anexar Email
     </button>
+    <button class="btn" id="btnGoCreate" onclick="goToCreate()"
+      style="margin-top:8px;background:var(--bg-card);color:var(--text);border:1px solid var(--border);">
+      + Criar Oportunidade a partir deste email
+    </button>
+  </div>
+
+  <!-- ── CREATE DEAL ── -->
+  <div class="section" id="sectionCreate">
+    <div class="alert alert-error"   id="createError"></div>
+    <div class="alert alert-success" id="createSuccess"></div>
+
+    <div class="email-preview">
+      <div class="subject" id="createPreviewSubject">A carregar email...</div>
+      <div class="meta"    id="createPreviewMeta"></div>
+    </div>
+
+    <div class="field">
+      <label>Título da Oportunidade</label>
+      <input type="text" id="createTitle" placeholder="Nome da oportunidade..." />
+    </div>
+
+    <div class="field">
+      <label>Cliente</label>
+      <div class="search-wrapper" id="createClientWrapper">
+        <input type="text" id="createClientSearch"
+          placeholder="Pesquisar cliente..."
+          oninput="onCreateClientInput()"
+          onfocus="onCreateClientFocus()"
+          autocomplete="off" />
+        <div class="search-results" id="createClientResults"></div>
+      </div>
+      <div class="selected-deal" id="createClientBox" style="margin-top:6px;">
+        <div class="deal-title" id="createClientName"></div>
+        <span class="change-link" onclick="clearCreateClient()">Alterar</span>
+      </div>
+    </div>
+
+    <div class="field" id="createContactField" style="display:none;">
+      <label>Contacto</label>
+      <div class="search-wrapper" id="createContactWrapper">
+        <input type="text" id="createContactSearch"
+          placeholder="Pesquisar contacto..."
+          oninput="onCreateContactInput()"
+          autocomplete="off" />
+        <div class="search-results" id="createContactResults"></div>
+      </div>
+      <div class="selected-deal" id="createContactBox" style="margin-top:6px;">
+        <div class="deal-title" id="createContactName"></div>
+        <span class="change-link" onclick="clearCreateContact()">Alterar</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Valor Estimado (€)</label>
+      <input type="text" id="createValue" placeholder="0" inputmode="decimal" />
+    </div>
+
+    <button class="btn btn-primary" id="btnCreate" onclick="handleCreate()" disabled>
+      Criar Oportunidade
+    </button>
+
+    <div style="margin-top:10px;text-align:center;">
+      <span class="change-link" onclick="showSection('sectionAttach')">← Voltar a anexar email</span>
+    </div>
   </div>
 
   <footer>ITXMind Hub · Outlook Add-in</footer>
@@ -341,7 +405,14 @@
         if (!e.target.closest('#searchWrapper')) {
           document.getElementById('searchResults').classList.remove('show');
         }
+        if (!e.target.closest('#createClientWrapper') && !e.target.closest('#createClientBox')) {
+          document.getElementById('createClientResults').classList.remove('show');
+        }
+        if (!e.target.closest('#createContactWrapper') && !e.target.closest('#createContactBox')) {
+          document.getElementById('createContactResults').classList.remove('show');
+        }
       });
+      document.getElementById('createTitle')?.addEventListener('input', updateCreateBtn);
     });
 
     // ── UI helpers ───────────────────────────────────────────────────────────
@@ -710,6 +781,228 @@
       } catch (err) {
         showAlert('attachError', `Erro: ${err.message}`);
         setLoading('btnAttach', false, 'Anexar Email');
+      }
+    }
+
+    // ── Create Deal ──────────────────────────────────────────────────────────
+    let createClientId   = null;
+    let createContactId  = null;
+    let createClientTimeout = null;
+    let createContactTimeout = null;
+
+    function goToCreate() {
+      // Pre-fill title with email subject
+      if (emailData) {
+        document.getElementById('createTitle').value = emailData.subject || '';
+        document.getElementById('createPreviewSubject').textContent = emailData.subject || '';
+        const date = new Date(emailData.received_at).toLocaleString('pt-PT', {
+          day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+        document.getElementById('createPreviewMeta').textContent =
+          `De: ${emailData.sender_name} <${emailData.sender_email}> · ${date}`;
+      }
+      clearCreateClient();
+      clearCreateContact();
+      document.getElementById('createValue').value = '';
+      hideAlert('createError');
+      hideAlert('createSuccess');
+      updateCreateBtn();
+      showSection('sectionCreate');
+    }
+
+    function updateCreateBtn() {
+      const title = document.getElementById('createTitle').value.trim();
+      document.getElementById('btnCreate').disabled = !title || !createClientId;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('createTitle')?.addEventListener('input', updateCreateBtn);
+    });
+
+    // ── Client search for create ──
+    function onCreateClientInput() {
+      clearTimeout(createClientTimeout);
+      createClientTimeout = setTimeout(searchCreateClients, 300);
+    }
+    function onCreateClientFocus() {
+      if (document.getElementById('createClientSearch').value) searchCreateClients();
+    }
+
+    async function searchCreateClients() {
+      const query = document.getElementById('createClientSearch').value.trim();
+      const resultsEl = document.getElementById('createClientResults');
+      resultsEl.innerHTML = '<div class="no-results">A pesquisar...</div>';
+      resultsEl.classList.add('show');
+      try {
+        let q = supabaseClient.from('clients').select('id, name').order('name').limit(30);
+        if (query) q = q.ilike('name', `%${query}%`);
+        const { data, error } = await q;
+        if (error) throw error;
+        if (!data?.length) {
+          resultsEl.innerHTML = '<div class="no-results">Nenhum cliente encontrado</div>';
+          return;
+        }
+        resultsEl.innerHTML = data.map(c =>
+          `<div class="search-result-item" onclick='selectCreateClient(${JSON.stringify(c).replace(/'/g, "&#39;")})'>
+            <div class="deal-title">${esc(c.name)}</div>
+          </div>`
+        ).join('');
+      } catch(err) {
+        resultsEl.innerHTML = `<div class="no-results" style="color:var(--danger)">${err.message}</div>`;
+      }
+    }
+
+    function selectCreateClient(client) {
+      createClientId = client.id;
+      document.getElementById('createClientName').textContent = client.name;
+      document.getElementById('createClientBox').classList.add('show');
+      document.getElementById('createClientWrapper').style.display = 'none';
+      document.getElementById('createClientResults').classList.remove('show');
+      // Show contact field and load contacts
+      document.getElementById('createContactField').style.display = 'block';
+      loadCreateContacts(client.id, client.name);
+      updateCreateBtn();
+    }
+
+    function clearCreateClient() {
+      createClientId = null;
+      document.getElementById('createClientBox').classList.remove('show');
+      document.getElementById('createClientWrapper').style.display = 'block';
+      document.getElementById('createClientSearch').value = '';
+      document.getElementById('createContactField').style.display = 'none';
+      clearCreateContact();
+      updateCreateBtn();
+    }
+
+    // ── Contact search for create ──
+    function onCreateContactInput() {
+      clearTimeout(createContactTimeout);
+      createContactTimeout = setTimeout(() => filterCreateContacts(document.getElementById('createContactSearch').value), 200);
+    }
+
+    let allCreateContacts = [];
+
+    async function loadCreateContacts(clientId, clientName) {
+      clearCreateContact();
+      document.getElementById('createContactSearch').value = '';
+      const resultsEl = document.getElementById('createContactResults');
+      resultsEl.innerHTML = '<div class="no-results">A carregar...</div>';
+      resultsEl.classList.add('show');
+      try {
+        const { data, error } = await supabaseClient
+          .from('contacts')
+          .select('id, first_name, last_name, email, job_title')
+          .eq('client_id', clientId)
+          .order('is_primary', { ascending: false })
+          .order('first_name');
+        if (error) throw error;
+        allCreateContacts = data || [];
+        renderCreateContacts(allCreateContacts);
+        // Auto-select if only one contact
+        if (allCreateContacts.length === 1) selectCreateContact(allCreateContacts[0]);
+      } catch(err) {
+        resultsEl.innerHTML = `<div class="no-results" style="color:var(--danger)">${err.message}</div>`;
+      }
+    }
+
+    function filterCreateContacts(query) {
+      const q = query.toLowerCase();
+      const filtered = q
+        ? allCreateContacts.filter(c =>
+            `${c.first_name} ${c.last_name || ''} ${c.email || ''}`.toLowerCase().includes(q))
+        : allCreateContacts;
+      renderCreateContacts(filtered);
+    }
+
+    function renderCreateContacts(contacts) {
+      const resultsEl = document.getElementById('createContactResults');
+      if (!contacts.length) {
+        resultsEl.innerHTML = '<div class="no-results">Nenhum contacto encontrado</div>';
+        resultsEl.classList.add('show');
+        return;
+      }
+      resultsEl.innerHTML = contacts.map(c => {
+        const name = `${c.first_name} ${c.last_name || ''}`.trim();
+        const sub = [c.job_title, c.email].filter(Boolean).join(' · ');
+        return `<div class="search-result-item" onclick='selectCreateContact(${JSON.stringify(c).replace(/'/g, "&#39;")})'>
+          <div class="deal-title">${esc(name)}</div>
+          ${sub ? `<div class="deal-meta">${esc(sub)}</div>` : ''}
+        </div>`;
+      }).join('');
+      resultsEl.classList.add('show');
+    }
+
+    function selectCreateContact(contact) {
+      createContactId = contact.id;
+      const name = `${contact.first_name} ${contact.last_name || ''}`.trim();
+      document.getElementById('createContactName').textContent = name + (contact.job_title ? ` · ${contact.job_title}` : '');
+      document.getElementById('createContactBox').classList.add('show');
+      document.getElementById('createContactWrapper').style.display = 'none';
+      document.getElementById('createContactResults').classList.remove('show');
+    }
+
+    function clearCreateContact() {
+      createContactId = null;
+      document.getElementById('createContactBox').classList.remove('show');
+      document.getElementById('createContactWrapper').style.display = 'block';
+      document.getElementById('createContactSearch').value = '';
+      document.getElementById('createContactResults').classList.remove('show');
+      allCreateContacts = [];
+    }
+
+    // ── Create deal submit ──
+    async function handleCreate() {
+      hideAlert('createError');
+      hideAlert('createSuccess');
+      const title = document.getElementById('createTitle').value.trim();
+      if (!title || !createClientId) return;
+      setLoading('btnCreate', true, 'A criar...');
+
+      try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+
+        // Reserve opp number
+        const { data: oppNumber, error: oppErr } = await supabaseClient.rpc('reserve_next_opp_number');
+        if (oppErr) throw new Error('Erro ao gerar número: ' + oppErr.message);
+
+        const fullTitle = `${oppNumber} - ${title}`;
+        const value = parseFloat(document.getElementById('createValue').value.replace(',', '.')) || 0;
+
+        const { data: deal, error: dealErr } = await supabaseClient
+          .from('deals')
+          .insert({
+            title:      fullTitle,
+            client_id:  createClientId,
+            contact_id: createContactId || null,
+            stage:      'qualification',
+            value:      value,
+            probability: 10,
+            created_by: user?.id || null,
+            owner_id:   user?.id || null,
+          })
+          .select()
+          .single();
+
+        if (dealErr) {
+          // Release the opp number if deal creation failed
+          await supabaseClient.rpc('release_opp_number', { p_number: oppNumber }).catch(() => {});
+          throw new Error('Erro ao criar oportunidade: ' + dealErr.message);
+        }
+
+        showAlert('createSuccess', `✓ Oportunidade "${fullTitle}" criada com sucesso!`);
+        setLoading('btnCreate', false, 'Criar Oportunidade');
+
+        // Offer to attach the email
+        setTimeout(() => {
+          hideAlert('createSuccess');
+          selectedDeal = { id: deal.id, title: fullTitle };
+          selectDeal(selectedDeal);
+          showSection('sectionAttach');
+        }, 2000);
+
+      } catch(err) {
+        showAlert('createError', `Erro: ${err.message}`);
+        setLoading('btnCreate', false, 'Criar Oportunidade');
       }
     }
 
